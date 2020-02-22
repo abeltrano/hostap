@@ -36,6 +36,7 @@ enum dpp_public_action_frame_type {
 	DPP_PA_PKEX_COMMIT_REVEAL_RESP = 10,
 	DPP_PA_CONFIGURATION_RESULT = 11,
 	DPP_PA_CONNECTION_STATUS_RESULT = 12,
+	DPP_PA_PRESENCE_ANNOUNCEMENT = 13,
 };
 
 enum dpp_attribute_id {
@@ -107,6 +108,7 @@ enum dpp_bootstrap_type {
 	DPP_BOOTSTRAP_QR_CODE,
 	DPP_BOOTSTRAP_PKEX,
 	DPP_BOOTSTRAP_NFC_URI,
+	DPP_BOOTSTRAP_CHIRP,
 };
 
 struct dpp_bootstrap_info {
@@ -302,6 +304,13 @@ struct dpp_relay_config {
 struct dpp_controller_config {
 	const char *configurator_params;
 	int tcp_port;
+};
+
+struct dpp_announce_presence {
+	struct dpp_bootstrap_info *bi;
+	struct wpabuf *req_msg;
+	int req_ack;
+	u8 pubkey_chirp_hash[SHA256_MAC_LEN];
 };
 
 #ifdef CONFIG_TESTING_OPTIONS
@@ -580,6 +589,11 @@ struct dpp_global_config {
 struct dpp_global * dpp_global_init(struct dpp_global_config *config);
 void dpp_global_clear(struct dpp_global *dpp);
 void dpp_global_deinit(struct dpp_global *dpp);
+
+struct dpp_announce_presence * dpp_announce_presence_init(
+			struct dpp_bootstrap_info *bi);
+void dpp_announce_presence_deinit(
+			struct dpp_announce_presence *announce);
 
 #endif /* CONFIG_DPP */
 #endif /* DPP_H */

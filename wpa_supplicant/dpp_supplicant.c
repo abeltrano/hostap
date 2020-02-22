@@ -45,6 +45,14 @@ wpas_dpp_tx_pkex_status(struct wpa_supplicant *wpa_s,
 			const u8 *src, const u8 *bssid,
 			const u8 *data, size_t data_len,
 			enum offchannel_send_action_result result);
+static int wpas_dpp_announce_presence_start(struct wpa_supplicant *wpa_s);
+static void wpas_dpp_announce_presence_wait_timeout(void *eloop_ctx,
+				void *timeout_ctx);
+static void wpas_dpp_tx_announce_presence_status(struct wpa_supplicant *wpa_s,
+			       unsigned int freq, const u8 *dst,
+			       const u8 *src, const u8 *bssid,
+			       const u8 *data, size_t data_len,
+			       enum offchannel_send_action_result result);
 
 static const u8 broadcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -1650,6 +1658,146 @@ static int wpas_dpp_process_conf_obj(void *ctx,
 	return res;
 }
 
+static void wpas_dpp_rx_announce_presence(struct wpa_supplicant *wpa_s, const u8 *src,
+				 const u8 *hdr, const u8 *buf, size_t len,
+				 unsigned int freq)
+{
+	const u8 *r_bootstrap;
+	u16 r_bootstrap_len;
+
+	wpa_printf(MSG_DEBUG, "DPP: Presence Announcement from " MACSTR,
+		   MAC2STR(src));
+
+	if (wpa_s->dpp_netrole != DPP_NETROLE_CONFIGURATOR) {
+		wpa_msg(wpa_s, MSG_DEBUG, "DPP: Ignoring presence announcment");
+		return;
+	}
+
+	r_bootstrap = dpp_get_attr(buf, len, DPP_ATTR_R_BOOTSTRAP_KEY_HASH,
+				   &r_bootstrap_len);
+	if (!r_bootstrap || r_bootstrap_len != SHA256_MAC_LEN) {
+		wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_FAIL
+			"Missing or invalid required Responder Bootstrapping Key Hash attribute");
+		return;
+	}
+	wpa_hexdump(MSG_MSGDUMP, "DPP: Responder Bootstrapping Key Hash",
+		    r_bootstrap, r_bootstrap_len);
+
+	// TODO: check if we know about this key
+	// TODO: respond by initiating DPP auth
+}
+
+static void wpas_dpp_tx_announce_presence_status(struct wpa_supplicant *wpa_s,
+			       unsigned int freq, const u8 *dst,
+			       const u8 *src, const u8 *bssid,
+			       const u8 *data, size_t data_len,
+			       enum offchannel_send_action_result result)
+{
+	const char *res_txt;
+	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
+
+	res_txt = result == OFFCHANNEL_SEND_ACTION_SUCCESS ? "SUCCESS" :
+		(result == OFFCHANNEL_SEND_ACTION_NO_ACK ? "no-ACK" :
+		 "FAILED");
+	wpa_printf(MSG_DEBUG, "DPP: TX status: freq=%u dst=" MACSTR
+		   " result=%s (PRESENCE_ANNOUNCE)",
+		   freq, MAC2STR(dst), res_txt);
+	wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_TX_STATUS "dst=" MACSTR
+		" freq=%u result=%s", MAC2STR(dst), freq, res_txt);
+
+	if (!announce) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Ignore TX status since there is no ongoing presence announcement");
+		return;
+	}
+
+	if (result == OFFCHANNEL_SEND_ACTION_SUCCESS) {
+		announce->req_ack = 1;
+		eloop_cancel_timeout(wpas_dpp_announce_presence_wait_timeout, wpa_s, NULL);
+	}
+
+	// TODO: check if we should start auth (initiate) or listen (responder)
+	// TODO: pause chirping
+}
+
+
+static void wpas_dpp_announce_presence_wait_timeout(void *eloop_ctx, void *timeout_ctx)
+{
+	struct wpa_supplicant *wpa_s = eloop_ctx;
+	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
+
+	wpa_msg(wpa_s, MSG_DEBUG, "DPP: Chirp Timeout");
+
+	// TODO: the timeout will indicate the attempt on a particular channel has expired
+	// without a response. Add logic to advance the channel.
+}
+
+
+static int wpas_dpp_announce_presence_start(struct wpa_supplicant *wpa_s)
+{
+	struct wpabuf *msg;
+	unsigned int freq;
+	unsigned int wait_time;
+	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
+
+	if (!announce)
+		return -1;
+
+	msg = announce->req_msg;
+
+	// TODO: set flag that we're chirping
+
+	eloop_register_timeout(5, 0,
+					wpas_dpp_announce_presence_wait_timeout,
+					wpa_s, NULL);
+
+	freq = 2437; // preferred channel (6) for 2.4GHz
+	wait_time = 2000;
+
+	return offchannel_send_action(wpa_s, freq, broadcast,
+					wpa_s->own_addr, broadcast,
+					wpabuf_head(msg), wpabuf_len(msg),
+					wait_time, wpas_dpp_tx_announce_presence_status, 0);
+}
+
+
+int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
+{
+	const char *pos = cmd;
+	struct dpp_bootstrap_info *bi;
+	struct dpp_announce_presence *announce;
+
+	if (wpa_s->dpp_announce) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Reject announce_presence since already chirping");
+		return -1;
+	}
+
+	bi = dpp_bootstrap_get_id(wpa_s->dpp, atoi(pos));
+	if (!bi)
+		return -1;
+
+	announce = dpp_announce_presence_init(bi);
+	if (!announce)
+		return -1;
+
+	wpa_s->dpp_announce = announce;
+
+	return wpas_dpp_announce_presence_start(wpa_s);
+}
+
+
+void wpas_dpp_announce_presence_stop(struct wpa_supplicant *wpa_s)
+{
+	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
+	if (!announce)
+
+		return;
+	eloop_cancel_timeout(wpas_dpp_announce_presence_wait_timeout, wpa_s, NULL);
+	dpp_announce_presence_deinit(announce);
+	wpa_s->dpp_announce = NULL;
+}
+
 #endif /* CONFIG_DPP2 */
 
 
@@ -2193,6 +2341,9 @@ void wpas_dpp_rx_action(struct wpa_supplicant *wpa_s, const u8 *src,
 		break;
 	case DPP_PA_CONNECTION_STATUS_RESULT:
 		wpas_dpp_rx_conn_status_result(wpa_s, src, hdr, buf, len);
+		break;
+	case DPP_PA_PRESENCE_ANNOUNCEMENT:
+		wpas_dpp_rx_announce_presence(wpa_s, src, hdr, buf, len, freq);
 		break;
 #endif /* CONFIG_DPP2 */
 	default:

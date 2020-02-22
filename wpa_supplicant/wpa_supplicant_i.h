@@ -1269,6 +1269,7 @@ struct wpa_supplicant {
 	size_t dpp_last_ssid_len;
 #ifdef CONFIG_DPP2
 	struct dpp_pfs *dpp_pfs;
+	struct dpp_announce_presence *dpp_announce;
 #endif /* CONFIG_DPP2 */
 #ifdef CONFIG_TESTING_OPTIONS
 	char *dpp_config_obj_override;

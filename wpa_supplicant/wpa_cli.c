@@ -3020,6 +3020,23 @@ static int wpa_cli_cmd_dpp_pkex_remove(struct wpa_ctrl *ctrl, int argc,
 	return wpa_cli_cmd(ctrl, "DPP_PKEX_REMOVE", 1, argc, argv);
 }
 
+
+#ifdef CONFIG_DPP2
+
+static int wpa_cli_cmd_dpp_announce_presence_start(struct wpa_ctrl *ctrl,
+					   int argc, char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "DPP_ANNOUNCE_PRESENCE_START", 0, argc, argv);
+}
+
+static int wpa_cli_cmd_dpp_announce_presence_stop(struct wpa_ctrl *ctrl,
+					   int argc, char *argv[])
+{
+	return wpa_cli_cmd(ctrl, "DPP_ANNOUNCE_PRESENCE_STOP", 0, argc, argv);
+}
+
+#endif /* CONFIG_DPP2 */
+
 #endif /* CONFIG_DPP */
 
 
@@ -3646,7 +3663,7 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 	  "report a scanned DPP URI from a QR Code" },
 	{ "dpp_bootstrap_gen", wpa_cli_cmd_dpp_bootstrap_gen, NULL,
 	  cli_cmd_flag_sensitive,
-	  "type=<qrcode> [chan=..] [mac=..] [info=..] [curve=..] [key=..] = generate DPP bootstrap information" },
+	  "type=<qrcode|pkex|nfc-uri|chirp> [chan=..] [mac=..] [info=..] [curve=..] [key=..] = generate DPP bootstrap information" },
 	{ "dpp_bootstrap_remove", wpa_cli_cmd_dpp_bootstrap_remove, NULL,
 	  cli_cmd_flag_none,
 	  "*|<id> = remove DPP bootstrap information" },
@@ -3681,6 +3698,14 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 	{ "dpp_pkex_remove", wpa_cli_cmd_dpp_pkex_remove, NULL,
 	  cli_cmd_flag_none,
 	  "*|<id> = remove DPP pkex information" },
+#ifdef CONFIG_DPP2
+	{ "dpp_chirp", wpa_cli_cmd_dpp_announce_presence_start,
+	  NULL, cli_cmd_flag_none,
+	  "= start DPP presence announcement (chirp)" },
+	{ "dpp_stop_chirp", wpa_cli_cmd_dpp_announce_presence_stop,
+	  NULL, cli_cmd_flag_none,
+	  "= stop DPP presence announcement (chirp)" },
+#endif
 #endif /* CONFIG_DPP */
 	{ NULL, NULL, NULL, cli_cmd_flag_none, NULL }
 };
