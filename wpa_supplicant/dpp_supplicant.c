@@ -1782,6 +1782,7 @@ int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 		return -1;
 
 	wpa_s->dpp_announce = announce;
+	wpa_s->dpp_allowed_roles = DPP_CAPAB_ENROLLEE;
 
 	return wpas_dpp_announce_presence_start(wpa_s);
 }
