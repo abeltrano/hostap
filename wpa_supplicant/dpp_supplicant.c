@@ -1662,29 +1662,9 @@ static void wpas_dpp_rx_announce_presence(struct wpa_supplicant *wpa_s, const u8
 				 const u8 *hdr, const u8 *buf, size_t len,
 				 unsigned int freq)
 {
-	const u8 *r_bootstrap;
-	u16 r_bootstrap_len;
-
-	wpa_printf(MSG_DEBUG, "DPP: Presence Announcement from " MACSTR,
-		   MAC2STR(src));
-
-	if (wpa_s->dpp_netrole != DPP_NETROLE_CONFIGURATOR) {
-		wpa_msg(wpa_s, MSG_DEBUG, "DPP: Ignoring presence announcment");
-		return;
-	}
-
-	r_bootstrap = dpp_get_attr(buf, len, DPP_ATTR_R_BOOTSTRAP_KEY_HASH,
-				   &r_bootstrap_len);
-	if (!r_bootstrap || r_bootstrap_len != SHA256_MAC_LEN) {
-		wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_FAIL
-			"Missing or invalid required Responder Bootstrapping Key Hash attribute");
-		return;
-	}
-	wpa_hexdump(MSG_MSGDUMP, "DPP: Responder Bootstrapping Key Hash",
-		    r_bootstrap, r_bootstrap_len);
-
-	// TODO: check if we know about this key
-	// TODO: respond by initiating DPP auth
+	dpp_rx_announce_presence(wpa_s, wpa_s->dpp_allowed_roles, src, hdr, buf,
+					len, freq);
+	// TODO: determine next action (stop listening, continue, etc.)
 }
 
 static void wpas_dpp_tx_announce_presence_status(struct wpa_supplicant *wpa_s,

@@ -10887,4 +10887,34 @@ void dpp_announce_presence_deinit(
 	wpabuf_free(announce->req_msg);
 	bin_clear_free(announce, sizeof(*announce));
 }
+
+
+void dpp_rx_announce_presence(void *msg_ctx,
+				u8 dpp_allowed_roles, const u8 *src, const u8 *hdr,
+				const u8 *buf, size_t len, unsigned int freq)
+{
+	const u8 *r_bootstrap;
+	u16 r_bootstrap_len;
+
+	wpa_printf(MSG_DEBUG, "DPP: Presence Announcement from " MACSTR,
+		   MAC2STR(src));
+
+	if (!(dpp_allowed_roles & DPP_CAPAB_CONFIGURATOR)) {
+		wpa_printf(MSG_DEBUG, "DPP: Ignoring presence announcment");
+		return;
+	}
+
+	r_bootstrap = dpp_get_attr(buf, len, DPP_ATTR_R_BOOTSTRAP_KEY_HASH,
+				   &r_bootstrap_len);
+	if (!r_bootstrap || r_bootstrap_len != SHA256_MAC_LEN) {
+		wpa_msg(msg_ctx, MSG_INFO, DPP_EVENT_FAIL
+			"Missing or invalid required Responder Bootstrapping Key Hash attribute");
+		return;
+	}
+	wpa_hexdump(MSG_MSGDUMP, "DPP: Responder Bootstrapping Key Hash",
+		    r_bootstrap, r_bootstrap_len);
+
+	// TODO: check if we know about this key
+	// TODO: respond by initiating DPP auth
+}
 #endif /* CONFIG_DPP2 */

@@ -592,6 +592,9 @@ void dpp_global_deinit(struct dpp_global *dpp);
 
 struct dpp_announce_presence * dpp_announce_presence_init(
 			struct dpp_bootstrap_info *bi);
+void dpp_rx_announce_presence(void *msg_ctx,
+				u8 dpp_allowed_roles, const u8 *src, const u8 *hdr,
+				const u8 *buf, size_t len, unsigned int freq);
 void dpp_announce_presence_deinit(
 			struct dpp_announce_presence *announce);
 
