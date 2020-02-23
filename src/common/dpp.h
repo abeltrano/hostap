@@ -563,6 +563,8 @@ void dpp_bootstrap_find_pair(struct dpp_global *dpp, const u8 *i_bootstrap,
 			     const u8 *r_bootstrap,
 			     struct dpp_bootstrap_info **own_bi,
 			     struct dpp_bootstrap_info **peer_bi);
+struct dpp_bootstrap_info *
+dpp_bootstrap_find_peer(struct dpp_global *dpp, const u8 *r_bootstrap);
 int dpp_configurator_add(struct dpp_global *dpp, const char *cmd);
 int dpp_configurator_remove(struct dpp_global *dpp, const char *id);
 int dpp_configurator_get_key_id(struct dpp_global *dpp, unsigned int id,
@@ -592,7 +594,8 @@ void dpp_global_deinit(struct dpp_global *dpp);
 
 struct dpp_announce_presence * dpp_announce_presence_init(
 			struct dpp_bootstrap_info *bi);
-void dpp_rx_announce_presence(void *msg_ctx,
+struct dpp_bootstrap_info *
+dpp_rx_announce_presence(void *msg_ctx, struct dpp_global *dpp,
 				u8 dpp_allowed_roles, const u8 *src, const u8 *hdr,
 				const u8 *buf, size_t len, unsigned int freq);
 void dpp_announce_presence_deinit(

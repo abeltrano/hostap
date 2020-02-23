@@ -1662,9 +1662,31 @@ static void wpas_dpp_rx_announce_presence(struct wpa_supplicant *wpa_s, const u8
 				 const u8 *hdr, const u8 *buf, size_t len,
 				 unsigned int freq)
 {
-	dpp_rx_announce_presence(wpa_s, wpa_s->dpp_allowed_roles, src, hdr, buf,
-					len, freq);
-	// TODO: determine next action (stop listening, continue, etc.)
+	struct dpp_authentication *auth;
+	struct dpp_bootstrap_info *peer_bi;
+
+	peer_bi = dpp_rx_announce_presence(wpa_s, wpa_s->dpp,
+					wpa_s->dpp_allowed_roles, src, hdr, buf, len, freq);
+	if (!peer_bi)
+		return;
+
+	if (wpa_s->dpp_auth) {
+		wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_FAIL
+			"Already in DPP authentication exchange - ignore new one");
+		return;
+	}
+
+	auth = dpp_auth_init(wpa_s, peer_bi, NULL, wpa_s->dpp_allowed_roles, freq,
+			     wpa_s->hw.modes, wpa_s->hw.num_modes);
+	if (!auth)
+		return;
+
+	auth->neg_freq = freq;
+	os_memcpy(auth->peer_mac_addr, src, ETH_ALEN);
+	wpa_s->dpp_auth = auth;
+
+	if (wpas_dpp_auth_init_next(wpa_s))
+		wpa_printf(MSG_DEBUG, "DPP: Authentication initialization failed");
 }
 
 static void wpas_dpp_tx_announce_presence_status(struct wpa_supplicant *wpa_s,
@@ -1704,9 +1726,7 @@ static void wpas_dpp_tx_announce_presence_status(struct wpa_supplicant *wpa_s,
 static void wpas_dpp_announce_presence_wait_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
-	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
-
-	wpa_msg(wpa_s, MSG_DEBUG, "DPP: Chirp Timeout");
+	wpa_msg(wpa_s, MSG_DEBUG, "DPP: Timed out waiting for chirp ACK");
 
 	// TODO: the timeout will indicate the attempt on a particular channel has expired
 	// without a response. Add logic to advance the channel.

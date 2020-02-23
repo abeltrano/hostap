@@ -9251,6 +9251,22 @@ void dpp_bootstrap_find_pair(struct dpp_global *dpp, const u8 *i_bootstrap,
 }
 
 
+struct dpp_bootstrap_info *
+dpp_bootstrap_find_peer(struct dpp_global *dpp, const u8 *r_bootstrap)
+{
+	struct dpp_bootstrap_info *bi;
+
+	if (!dpp)
+		return NULL;
+
+	dl_list_for_each(bi, &dpp->bootstrap, struct dpp_bootstrap_info, list) {
+		if (os_memcmp(bi->pubkey_hash, r_bootstrap, SHA256_MAC_LEN) == 0)
+			return bi;
+	}
+	return NULL;
+}
+
+
 static int dpp_nfc_update_bi_channel(struct dpp_bootstrap_info *own_bi,
 				     struct dpp_bootstrap_info *peer_bi)
 {
@@ -10889,19 +10905,21 @@ void dpp_announce_presence_deinit(
 }
 
 
-void dpp_rx_announce_presence(void *msg_ctx,
+struct dpp_bootstrap_info *
+dpp_rx_announce_presence(void *msg_ctx, struct dpp_global *dpp,
 				u8 dpp_allowed_roles, const u8 *src, const u8 *hdr,
 				const u8 *buf, size_t len, unsigned int freq)
 {
 	const u8 *r_bootstrap;
 	u16 r_bootstrap_len;
+	struct dpp_bootstrap_info *bi;
 
 	wpa_printf(MSG_DEBUG, "DPP: Presence Announcement from " MACSTR,
 		   MAC2STR(src));
 
 	if (!(dpp_allowed_roles & DPP_CAPAB_CONFIGURATOR)) {
-		wpa_printf(MSG_DEBUG, "DPP: Ignoring presence announcment");
-		return;
+		wpa_printf(MSG_DEBUG, "DPP: Ignoring Presence Announcment");
+		goto fail;
 	}
 
 	r_bootstrap = dpp_get_attr(buf, len, DPP_ATTR_R_BOOTSTRAP_KEY_HASH,
@@ -10909,12 +10927,22 @@ void dpp_rx_announce_presence(void *msg_ctx,
 	if (!r_bootstrap || r_bootstrap_len != SHA256_MAC_LEN) {
 		wpa_msg(msg_ctx, MSG_INFO, DPP_EVENT_FAIL
 			"Missing or invalid required Responder Bootstrapping Key Hash attribute");
-		return;
+		goto fail;
 	}
 	wpa_hexdump(MSG_MSGDUMP, "DPP: Responder Bootstrapping Key Hash",
 		    r_bootstrap, r_bootstrap_len);
 
-	// TODO: check if we know about this key
-	// TODO: respond by initiating DPP auth
+	bi = dpp_bootstrap_find_peer(dpp, r_bootstrap);
+	if (!bi) {
+		wpa_printf(MSG_INFO,
+			"No matching peer bootstrapping key found - ignore message");
+		goto fail;
+	}
+
+out:
+	return bi;
+fail:
+	bi = NULL;
+	goto out;
 }
 #endif /* CONFIG_DPP2 */
