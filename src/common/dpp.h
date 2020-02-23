@@ -310,6 +310,7 @@ struct dpp_announce_presence {
 	struct dpp_bootstrap_info *bi;
 	struct wpabuf *req_msg;
 	int req_ack;
+	int hash_prepend_chirp;
 	u8 pubkey_chirp_hash[SHA256_MAC_LEN];
 };
 

@@ -1474,7 +1474,7 @@ int dpp_bootstrap_key_hash(struct dpp_bootstrap_info *bi)
 	return res;
 }
 
-
+#ifdef CONFIG_DPP_PREPEND_CHIRP_RBKEY_HASH
 static int dpp_bootstrap_key_chirp_hash(struct dpp_announce_presence *announce)
 {
 	struct dpp_bootstrap_info *bi = announce->bi;
@@ -1502,6 +1502,7 @@ static int dpp_bootstrap_key_chirp_hash(struct dpp_announce_presence *announce)
 	wpabuf_free(der);
 	return res;
 }
+#endif // CONFIG_DPP_PREPEND_CHIRP_RBKEY_HASH
 
 
 static int dpp_keygen(struct dpp_bootstrap_info *bi, const char *curve,
@@ -10880,9 +10881,12 @@ dpp_announce_presence_init(struct dpp_bootstrap_info *bi)
 		return NULL;
 
 	announce->bi = bi;
+#ifdef CONFIG_DPP_PREPEND_CHIRP_RBKEY_HASH
 	if (dpp_bootstrap_key_chirp_hash(announce) < 0)
 		goto fail;
-
+#else
+	os_memcpy(announce->pubkey_chirp_hash, bi->pubkey_hash, SHA256_MAC_LEN);
+#endif
 	announce->req_msg = dpp_announce_presence_build_req(
 							announce->pubkey_chirp_hash);
 	if (!announce->req_msg)
