@@ -125,6 +125,7 @@ struct dpp_bootstrap_info {
 	int own;
 	EVP_PKEY *pubkey;
 	u8 pubkey_hash[SHA256_MAC_LEN];
+	u8 pubkey_hash_chirp[SHA256_MAC_LEN];
 	const struct dpp_curve_params *curve;
 	unsigned int pkex_t; /* number of failures before dpp_pkex
 			      * instantiation */
@@ -310,8 +311,6 @@ struct dpp_announce_presence {
 	struct dpp_bootstrap_info *bi;
 	struct wpabuf *req_msg;
 	int req_ack;
-	int hash_prepend_chirp;
-	u8 pubkey_chirp_hash[SHA256_MAC_LEN];
 };
 
 #ifdef CONFIG_TESTING_OPTIONS

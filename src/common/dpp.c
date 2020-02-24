@@ -1453,8 +1453,8 @@ int dpp_bootstrap_key_hash(struct dpp_bootstrap_info *bi)
 {
 	struct wpabuf *der;
 	int res;
-	const u8 *addr[1];
-	size_t len[1];
+	const u8 *addr[2];
+	size_t len[2];
 
 	der = dpp_bootstrap_key_der(bi->pubkey);
 	if (!der)
@@ -1470,39 +1470,20 @@ int dpp_bootstrap_key_hash(struct dpp_bootstrap_info *bi)
 	else
 		wpa_hexdump(MSG_DEBUG, "DPP: Public key hash", bi->pubkey_hash,
 			    SHA256_MAC_LEN);
-	wpabuf_free(der);
-	return res;
-}
-
-#ifdef CONFIG_DPP_PREPEND_CHIRP_RBKEY_HASH
-static int dpp_bootstrap_key_chirp_hash(struct dpp_announce_presence *announce)
-{
-	struct dpp_bootstrap_info *bi = announce->bi;
-	struct wpabuf *der;
-	int res;
-	const u8 *addr[2];
-	size_t len[2];
-
-	der = dpp_bootstrap_key_der(bi->pubkey);
-	if (!der)
-		return -1;
-	wpa_hexdump_buf(MSG_DEBUG, "DPP: Compressed public key (DER)",
-			der);
 
 	addr[0] = (u8 *)"chirp";
 	len[0] = 5;
 	addr[1] = wpabuf_head(der);
 	len[1] = wpabuf_len(der);
-	res = sha256_vector(2, addr, len, announce->pubkey_chirp_hash);
+	res = sha256_vector(2, addr, len, bi->pubkey_hash_chirp);
 	if (res < 0)
 		wpa_printf(MSG_DEBUG, "DPP: Failed to hash public key (chirp) %d", res);
 	else
 		wpa_hexdump(MSG_DEBUG, "DPP: Public key hash (chirp)",
-				announce->pubkey_chirp_hash, SHA256_MAC_LEN);
+				bi->pubkey_hash_chirp, SHA256_MAC_LEN);
 	wpabuf_free(der);
 	return res;
 }
-#endif // CONFIG_DPP_PREPEND_CHIRP_RBKEY_HASH
 
 
 static int dpp_keygen(struct dpp_bootstrap_info *bi, const char *curve,
@@ -9253,7 +9234,7 @@ void dpp_bootstrap_find_pair(struct dpp_global *dpp, const u8 *i_bootstrap,
 
 
 struct dpp_bootstrap_info *
-dpp_bootstrap_find_peer(struct dpp_global *dpp, const u8 *r_bootstrap)
+dpp_bootstrap_find_chirp_peer(struct dpp_global *dpp, const u8 *r_bootstrap_chirp)
 {
 	struct dpp_bootstrap_info *bi;
 
@@ -9261,7 +9242,8 @@ dpp_bootstrap_find_peer(struct dpp_global *dpp, const u8 *r_bootstrap)
 		return NULL;
 
 	dl_list_for_each(bi, &dpp->bootstrap, struct dpp_bootstrap_info, list) {
-		if (os_memcmp(bi->pubkey_hash, r_bootstrap, SHA256_MAC_LEN) == 0)
+		if (os_memcmp(bi->pubkey_hash_chirp, r_bootstrap_chirp,
+				SHA256_MAC_LEN) == 0)
 			return bi;
 	}
 	return NULL;
@@ -10881,14 +10863,8 @@ dpp_announce_presence_init(struct dpp_bootstrap_info *bi)
 		return NULL;
 
 	announce->bi = bi;
-#ifdef CONFIG_DPP_PREPEND_CHIRP_RBKEY_HASH
-	if (dpp_bootstrap_key_chirp_hash(announce) < 0)
-		goto fail;
-#else
-	os_memcpy(announce->pubkey_chirp_hash, bi->pubkey_hash, SHA256_MAC_LEN);
-#endif
 	announce->req_msg = dpp_announce_presence_build_req(
-							announce->pubkey_chirp_hash);
+							bi->pubkey_hash_chirp);
 	if (!announce->req_msg)
 		goto fail;
 
@@ -10914,8 +10890,8 @@ dpp_rx_announce_presence(void *msg_ctx, struct dpp_global *dpp,
 				u8 dpp_allowed_roles, const u8 *src, const u8 *hdr,
 				const u8 *buf, size_t len, unsigned int freq)
 {
-	const u8 *r_bootstrap;
-	u16 r_bootstrap_len;
+	const u8 *r_bootstrap_chirp;
+	u16 r_bootstrap_chirp_len;
 	struct dpp_bootstrap_info *bi;
 
 	wpa_printf(MSG_DEBUG, "DPP: Presence Announcement from " MACSTR,
@@ -10926,17 +10902,17 @@ dpp_rx_announce_presence(void *msg_ctx, struct dpp_global *dpp,
 		goto fail;
 	}
 
-	r_bootstrap = dpp_get_attr(buf, len, DPP_ATTR_R_BOOTSTRAP_KEY_HASH,
-				   &r_bootstrap_len);
-	if (!r_bootstrap || r_bootstrap_len != SHA256_MAC_LEN) {
+	r_bootstrap_chirp = dpp_get_attr(buf, len, DPP_ATTR_R_BOOTSTRAP_KEY_HASH,
+					&r_bootstrap_chirp_len);
+	if (!r_bootstrap_chirp || r_bootstrap_chirp_len != SHA256_MAC_LEN) {
 		wpa_msg(msg_ctx, MSG_INFO, DPP_EVENT_FAIL
 			"Missing or invalid required Responder Bootstrapping Key Hash attribute");
 		goto fail;
 	}
 	wpa_hexdump(MSG_MSGDUMP, "DPP: Responder Bootstrapping Key Hash",
-		    r_bootstrap, r_bootstrap_len);
+		    r_bootstrap_chirp, r_bootstrap_chirp_len);
 
-	bi = dpp_bootstrap_find_peer(dpp, r_bootstrap);
+	bi = dpp_bootstrap_find_chirp_peer(dpp, r_bootstrap_chirp);
 	if (!bi) {
 		wpa_printf(MSG_INFO,
 			"No matching peer bootstrapping key found - ignore message");
