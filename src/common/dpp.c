@@ -10919,6 +10919,9 @@ dpp_rx_announce_presence(void *msg_ctx, struct dpp_global *dpp,
 		goto fail;
 	}
 
+	bi->freq[0] = freq;
+	bi->num_freq = 1;
+
 out:
 	return bi;
 fail:
