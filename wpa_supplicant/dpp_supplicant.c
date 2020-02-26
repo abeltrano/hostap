@@ -684,6 +684,7 @@ int wpas_dpp_auth_init(struct wpa_supplicant *wpa_s, const char *cmd)
 	int tcp_port = DPP_TCP_PORT;
 	struct hostapd_ip_addr ipaddr;
 	char *addr;
+	int preload = 0;
 #endif /* CONFIG_DPP2 */
 
 	wpa_s->dpp_gas_client = 0;
@@ -715,6 +716,12 @@ int wpas_dpp_auth_init(struct wpa_supplicant *wpa_s, const char *cmd)
 		if (res)
 			return -1;
 		tcp = 1;
+	}
+
+	pos = os_strstr(cmd, " preload");
+	if (pos) {
+		pos += 8;
+		preload = 1;
 	}
 #endif /* CONFIG_DPP2 */
 
@@ -793,6 +800,11 @@ int wpas_dpp_auth_init(struct wpa_supplicant *wpa_s, const char *cmd)
 #ifdef CONFIG_DPP2
 	if (tcp)
 		return dpp_tcp_init(wpa_s->dpp, auth, &ipaddr, tcp_port);
+
+	if (preload) {
+		dpp_auth_add_pending(wpa_s->dpp, auth);
+		return 0;
+	}
 #endif /* CONFIG_DPP2 */
 
 	wpa_s->dpp_auth = auth;
@@ -1676,15 +1688,18 @@ static void wpas_dpp_rx_announce_presence(struct wpa_supplicant *wpa_s, const u8
 		return;
 	}
 
-	auth = dpp_auth_init(wpa_s, peer_bi, NULL, wpa_s->dpp_allowed_roles, freq,
-			     wpa_s->hw.modes, wpa_s->hw.num_modes);
-	if (!auth)
+	auth = dpp_auth_find_pending(wpa_s->dpp, peer_bi);
+	if (!auth) {
+		wpa_printf(MSG_INFO, "No preloaded auth configuration found");
 		return;
+	}
 
+	dl_list_del(&auth->pending);
+	auth->freq[0] = freq;
+	auth->num_freq = 1;
 	auth->neg_freq = freq;
 	os_memcpy(auth->peer_mac_addr, src, ETH_ALEN);
 	wpa_s->dpp_auth = auth;
-
 	if (wpas_dpp_auth_init_next(wpa_s))
 		wpa_printf(MSG_DEBUG, "DPP: Authentication initialization failed");
 }

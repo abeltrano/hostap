@@ -274,6 +274,7 @@ struct dpp_authentication {
 	char *groups_override;
 	unsigned int ignore_netaccesskey_mismatch:1;
 #endif /* CONFIG_TESTING_OPTIONS */
+	struct dl_list pending;
 };
 
 struct dpp_configurator {
@@ -442,6 +443,10 @@ struct dpp_authentication * dpp_auth_init(void *msg_ctx,
 					  unsigned int neg_freq,
 					  struct hostapd_hw_modes *own_modes,
 					  u16 num_modes);
+void dpp_auth_add_pending(struct dpp_global *dpp,
+					  struct dpp_authentication *auth);
+struct dpp_authentication * dpp_auth_find_pending(struct dpp_global *dpp,
+					  struct dpp_bootstrap_info *peer_bi);
 struct dpp_authentication *
 dpp_auth_req_rx(void *msg_ctx, u8 dpp_allowed_roles, int qr_mutual,
 		struct dpp_bootstrap_info *peer_bi,

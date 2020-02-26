@@ -130,6 +130,7 @@ struct dpp_global {
 	struct dl_list tcp_init; /* struct dpp_connection */
 	void *cb_ctx;
 	int (*process_conf_obj)(void *ctx, struct dpp_authentication *auth);
+	struct dl_list pending_auths;	/* struct dpp_authentication */
 #endif /* CONFIG_DPP2 */
 };
 
@@ -9578,6 +9579,7 @@ struct dpp_global * dpp_global_init(struct dpp_global_config *config)
 #ifdef CONFIG_DPP2
 	dl_list_init(&dpp->controllers);
 	dl_list_init(&dpp->tcp_init);
+	dl_list_init(&dpp->pending_auths);
 #endif /* CONFIG_DPP2 */
 
 	return dpp;
@@ -10985,5 +10987,26 @@ out:
 fail:
 	bi = NULL;
 	goto out;
+}
+
+
+struct dpp_authentication * dpp_auth_find_pending(struct dpp_global *dpp,
+	struct dpp_bootstrap_info *peer_bi)
+{
+	struct dpp_authentication *auth;
+
+	dl_list_for_each(auth, &dpp->pending_auths,
+				struct dpp_authentication, pending) {
+		if (peer_bi->id == auth->peer_bi->id)
+			return auth;
+	}
+	return NULL;
+}
+
+
+void dpp_auth_add_pending(struct dpp_global *dpp,
+	struct dpp_authentication *auth)
+{
+	dl_list_add(&dpp->pending_auths, &auth->pending);
 }
 #endif /* CONFIG_DPP2 */
