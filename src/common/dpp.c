@@ -2175,6 +2175,62 @@ static int dpp_channel_local_list(struct dpp_authentication *auth,
 }
 
 
+static int dpp_channel_chirp_list(
+				struct dpp_announce_presence *announce,
+				struct hostapd_hw_modes *own_modes,
+				u16 num_modes)
+{
+	announce->num_freq = 0;
+
+	if (dpp_channel_ok_init(own_modes, num_modes, 2437))
+		announce->freq[announce->num_freq++] = 2437;
+	if (dpp_channel_ok_init(own_modes, num_modes, 5220))
+		announce->freq[announce->num_freq++] = 5220;
+	else if (dpp_channel_ok_init(own_modes, num_modes, 5745))
+		announce->freq[announce->num_freq++] = 5745;
+	if (dpp_channel_ok_init(own_modes, num_modes, 6048))
+		announce->freq[announce->num_freq++] = 6048;
+
+	return announce->num_freq == 0 ? -1 : 0;
+}
+
+
+static int dpp_prepare_chirp_channel_list(
+				struct dpp_announce_presence *announce,
+				struct hostapd_hw_modes *own_modes,
+				u16 num_modes)
+{
+	int res;
+	char freqs[DPP_BOOTSTRAP_MAX_FREQ * 6 + 10], *pos, *end;
+	unsigned int i;
+
+	res = dpp_channel_chirp_list(announce, own_modes, num_modes);
+	if (res < 0)
+		return res;
+
+	/* TODO: scan all supported bands and add each channel advertising
+	 * configurator connectivity IE.
+	 */
+
+	announce->freq_idx = 0;
+	announce->curr_freq = announce->freq[0];
+
+	pos = freqs;
+	end = pos + sizeof(freqs);
+	for (i = 0; i < announce->num_freq; i++) {
+		res = os_snprintf(pos, end - pos, " %u", announce->freq[i]);
+		if (os_snprintf_error(end - pos, res))
+			break;
+		pos += res;
+	}
+	*pos = '\0';
+	wpa_printf(MSG_DEBUG, "DPP: Possible frequencies for chirping:%s",
+		   freqs);
+
+	return 0;
+}
+
+
 static int dpp_prepare_channel_list(struct dpp_authentication *auth,
 				    struct hostapd_hw_modes *own_modes,
 				    u16 num_modes)
@@ -10854,7 +10910,9 @@ static struct wpabuf * dpp_announce_presence_build_req(
 
 
 struct dpp_announce_presence *
-dpp_announce_presence_init(struct dpp_bootstrap_info *bi)
+dpp_announce_presence_init(struct dpp_bootstrap_info *bi,
+				struct hostapd_hw_modes *own_modes,
+				u16 num_modes)
 {
 	struct dpp_announce_presence *announce;
 
@@ -10863,9 +10921,9 @@ dpp_announce_presence_init(struct dpp_bootstrap_info *bi)
 		return NULL;
 
 	announce->bi = bi;
-	announce->req_msg = dpp_announce_presence_build_req(
-							bi->pubkey_hash_chirp);
-	if (!announce->req_msg)
+	announce->req_msg = dpp_announce_presence_build_req(bi->pubkey_hash_chirp);
+	if (!announce->req_msg ||
+		dpp_prepare_chirp_channel_list(announce, own_modes, num_modes) < 0)
 		goto fail;
 
 out:

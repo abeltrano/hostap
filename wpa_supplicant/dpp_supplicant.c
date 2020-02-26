@@ -45,7 +45,7 @@ wpas_dpp_tx_pkex_status(struct wpa_supplicant *wpa_s,
 			const u8 *src, const u8 *bssid,
 			const u8 *data, size_t data_len,
 			enum offchannel_send_action_result result);
-static int wpas_dpp_announce_presence_start(struct wpa_supplicant *wpa_s);
+static int wpas_dpp_announce_presence_next(struct wpa_supplicant *wpa_s);
 static void wpas_dpp_announce_presence_wait_timeout(void *eloop_ctx,
 				void *timeout_ctx);
 static void wpas_dpp_tx_announce_presence_status(struct wpa_supplicant *wpa_s,
@@ -1713,47 +1713,71 @@ static void wpas_dpp_tx_announce_presence_status(struct wpa_supplicant *wpa_s,
 		return;
 	}
 
-	if (result == OFFCHANNEL_SEND_ACTION_SUCCESS) {
+	if (result == OFFCHANNEL_SEND_ACTION_SUCCESS)
 		announce->req_ack = 1;
-		eloop_cancel_timeout(wpas_dpp_announce_presence_wait_timeout, wpa_s, NULL);
-	}
-
-	// TODO: check if we should start auth (initiate) or listen (responder)
-	// TODO: pause chirping
 }
 
 
 static void wpas_dpp_announce_presence_wait_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
-	wpa_msg(wpa_s, MSG_DEBUG, "DPP: Timed out waiting for chirp ACK");
 
-	// TODO: the timeout will indicate the attempt on a particular channel has expired
-	// without a response. Add logic to advance the channel.
+	if (!wpa_s->dpp_announce)
+		return;
+	wpa_printf(MSG_DEBUG, "DPP: Retry presence announcement after timeout");
+	wpas_dpp_announce_presence_next(wpa_s);
 }
 
 
-static int wpas_dpp_announce_presence_start(struct wpa_supplicant *wpa_s)
+static int wpas_dpp_announce_presence_next(struct wpa_supplicant *wpa_s)
 {
 	struct wpabuf *msg;
-	unsigned int freq;
-	unsigned int wait_time;
 	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
+	unsigned int freq, wait_time, max_tries;
 
 	if (!announce)
 		return -1;
 
-	msg = announce->req_msg;
+	if (announce->freq_idx >= announce->num_freq) {
+		announce->num_freq_iters++;
+		if (wpa_s->dpp_announce_max_tries)
+			max_tries = wpa_s->dpp_announce_max_tries;
+		else
+			max_tries = 4;
+		if (announce->num_freq_iters >= max_tries) {
+			wpa_printf(MSG_INFO,
+				"DPP: Authentication not initiated - stopping presence announcement");
+			offchannel_send_action_done(wpa_s);
+			dpp_announce_presence_deinit(announce);
+			wpa_s->dpp_announce = NULL;
+			return -1;
+		}
 
-	// TODO: set flag that we're chirping
+		announce->freq_idx = 0;
+		if (wpa_s->dpp_announce_retry_time)
+			wait_time = wpa_s->dpp_announce_retry_time;
+		else
+			wait_time = 30;
+		eloop_register_timeout(wait_time, 0,
+						wpas_dpp_announce_presence_wait_timeout,
+						wpa_s, NULL);
+		return 0;
+	}
 
-	eloop_register_timeout(5, 0,
+	eloop_cancel_timeout(wpas_dpp_announce_presence_wait_timeout, wpa_s, NULL);
+
+	freq = announce->freq[announce->freq_idx++];
+	announce->curr_freq = freq;
+	wait_time = 2000;
+	if (wait_time > wpa_s->max_remain_on_chan)
+		wait_time = wpa_s->max_remain_on_chan;
+	wait_time += 20;
+	eloop_register_timeout(wait_time / 1000, (wait_time % 1000) * 1000,
 					wpas_dpp_announce_presence_wait_timeout,
 					wpa_s, NULL);
 
-	freq = 2437; // preferred channel (6) for 2.4GHz
-	wait_time = 2000;
-
+	wait_time -= 20;
+	msg = announce->req_msg;
 	return offchannel_send_action(wpa_s, freq, broadcast,
 					wpa_s->own_addr, broadcast,
 					wpabuf_head(msg), wpabuf_len(msg),
@@ -1777,14 +1801,15 @@ int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 	if (!bi)
 		return -1;
 
-	announce = dpp_announce_presence_init(bi);
+	announce = dpp_announce_presence_init(bi,
+					wpa_s->hw.modes, wpa_s->hw.num_modes);
 	if (!announce)
 		return -1;
 
 	wpa_s->dpp_announce = announce;
 	wpa_s->dpp_allowed_roles = DPP_CAPAB_ENROLLEE;
 
-	return wpas_dpp_announce_presence_start(wpa_s);
+	return wpas_dpp_announce_presence_next(wpa_s);
 }
 
 
@@ -1792,7 +1817,6 @@ void wpas_dpp_announce_presence_stop(struct wpa_supplicant *wpa_s)
 {
 	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
 	if (!announce)
-
 		return;
 	eloop_cancel_timeout(wpas_dpp_announce_presence_wait_timeout, wpa_s, NULL);
 	dpp_announce_presence_deinit(announce);

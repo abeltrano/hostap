@@ -311,6 +311,11 @@ struct dpp_announce_presence {
 	struct dpp_bootstrap_info *bi;
 	struct wpabuf *req_msg;
 	int req_ack;
+	unsigned int freq[DPP_BOOTSTRAP_MAX_FREQ];
+	unsigned int num_freq, freq_idx;
+	unsigned int curr_freq;
+	unsigned int num_freq_iters;
+	unsigned int num_tries;
 };
 
 #ifdef CONFIG_TESTING_OPTIONS
@@ -593,7 +598,9 @@ void dpp_global_clear(struct dpp_global *dpp);
 void dpp_global_deinit(struct dpp_global *dpp);
 
 struct dpp_announce_presence * dpp_announce_presence_init(
-			struct dpp_bootstrap_info *bi);
+			struct dpp_bootstrap_info *bi,
+			struct hostapd_hw_modes *own_modes,
+			u16 num_modes);
 struct dpp_bootstrap_info *
 dpp_rx_announce_presence(void *msg_ctx, struct dpp_global *dpp,
 				u8 dpp_allowed_roles, const u8 *src, const u8 *hdr,

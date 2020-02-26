@@ -659,6 +659,12 @@ static int wpa_supplicant_ctrl_iface_set(struct wpa_supplicant *wpa_s,
 		wpa_s->dpp_resp_max_tries = atoi(value);
 	} else if (os_strcasecmp(cmd, "dpp_resp_retry_time") == 0) {
 		wpa_s->dpp_resp_retry_time = atoi(value);
+#ifdef CONFIG_DPP2
+	} else if (os_strcasecmp(cmd, "dpp_announce_retry_time") == 0) {
+		wpa_s->dpp_announce_retry_time = atoi(value);
+	} else if (os_strcasecmp(cmd, "dpp_announce_max_tries") == 0) {
+		wpa_s->dpp_announce_max_tries = atoi(value);
+#endif /* CONFIG_DPP2 */
 #ifdef CONFIG_TESTING_OPTIONS
 	} else if (os_strcasecmp(cmd, "dpp_pkex_own_mac_override") == 0) {
 		if (hwaddr_aton(value, dpp_pkex_own_mac_override))
