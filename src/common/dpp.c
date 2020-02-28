@@ -130,6 +130,7 @@ struct dpp_global {
 	struct dl_list tcp_init; /* struct dpp_connection */
 	void *cb_ctx;
 	int (*process_conf_obj)(void *ctx, struct dpp_authentication *auth);
+	struct dl_list pending_auths;	/* struct dpp_authentication */
 #endif /* CONFIG_DPP2 */
 };
 
@@ -836,6 +837,8 @@ const char * dpp_bootstrap_type_txt(enum dpp_bootstrap_type type)
 		return "PKEX";
 	case DPP_BOOTSTRAP_NFC_URI:
 		return "NFC-URI";
+	case DPP_BOOTSTRAP_CHIRP:
+		return "CHIRP";
 	}
 	return "??";
 }
@@ -1451,8 +1454,8 @@ int dpp_bootstrap_key_hash(struct dpp_bootstrap_info *bi)
 {
 	struct wpabuf *der;
 	int res;
-	const u8 *addr[1];
-	size_t len[1];
+	const u8 *addr[2];
+	size_t len[2];
 
 	der = dpp_bootstrap_key_der(bi->pubkey);
 	if (!der)
@@ -1468,6 +1471,17 @@ int dpp_bootstrap_key_hash(struct dpp_bootstrap_info *bi)
 	else
 		wpa_hexdump(MSG_DEBUG, "DPP: Public key hash", bi->pubkey_hash,
 			    SHA256_MAC_LEN);
+
+	addr[0] = (u8 *)"chirp";
+	len[0] = 5;
+	addr[1] = wpabuf_head(der);
+	len[1] = wpabuf_len(der);
+	res = sha256_vector(2, addr, len, bi->pubkey_hash_chirp);
+	if (res < 0)
+		wpa_printf(MSG_DEBUG, "DPP: Failed to hash public key (chirp) %d", res);
+	else
+		wpa_hexdump(MSG_DEBUG, "DPP: Public key hash (chirp)",
+				bi->pubkey_hash_chirp, SHA256_MAC_LEN);
 	wpabuf_free(der);
 	return res;
 }
@@ -2159,6 +2173,62 @@ static int dpp_channel_local_list(struct dpp_authentication *auth,
 	}
 
 	return auth->num_freq == 0 ? -1 : 0;
+}
+
+
+static int dpp_channel_chirp_list(
+				struct dpp_announce_presence *announce,
+				struct hostapd_hw_modes *own_modes,
+				u16 num_modes)
+{
+	announce->num_freq = 0;
+
+	if (dpp_channel_ok_init(own_modes, num_modes, 2437))
+		announce->freq[announce->num_freq++] = 2437;
+	if (dpp_channel_ok_init(own_modes, num_modes, 5220))
+		announce->freq[announce->num_freq++] = 5220;
+	else if (dpp_channel_ok_init(own_modes, num_modes, 5745))
+		announce->freq[announce->num_freq++] = 5745;
+	if (dpp_channel_ok_init(own_modes, num_modes, 6048))
+		announce->freq[announce->num_freq++] = 6048;
+
+	return announce->num_freq == 0 ? -1 : 0;
+}
+
+
+static int dpp_prepare_chirp_channel_list(
+				struct dpp_announce_presence *announce,
+				struct hostapd_hw_modes *own_modes,
+				u16 num_modes)
+{
+	int res;
+	char freqs[DPP_BOOTSTRAP_MAX_FREQ * 6 + 10], *pos, *end;
+	unsigned int i;
+
+	res = dpp_channel_chirp_list(announce, own_modes, num_modes);
+	if (res < 0)
+		return res;
+
+	/* TODO: scan all supported bands and add each channel advertising
+	 * configurator connectivity IE.
+	 */
+
+	announce->freq_idx = 0;
+	announce->curr_freq = announce->freq[0];
+
+	pos = freqs;
+	end = pos + sizeof(freqs);
+	for (i = 0; i < announce->num_freq; i++) {
+		res = os_snprintf(pos, end - pos, " %u", announce->freq[i]);
+		if (os_snprintf_error(end - pos, res))
+			break;
+		pos += res;
+	}
+	*pos = '\0';
+	wpa_printf(MSG_DEBUG, "DPP: Possible frequencies for chirping:%s",
+		   freqs);
+
+	return 0;
 }
 
 
@@ -9045,6 +9115,8 @@ int dpp_bootstrap_gen(struct dpp_global *dpp, const char *cmd)
 		bi->type = DPP_BOOTSTRAP_PKEX;
 	else if (os_strstr(cmd, "type=nfc-uri"))
 		bi->type = DPP_BOOTSTRAP_NFC_URI;
+	else if (os_strstr(cmd, "type=chirp"))
+		bi->type = DPP_BOOTSTRAP_CHIRP;
 	else
 		goto fail;
 
@@ -9215,6 +9287,23 @@ void dpp_bootstrap_find_pair(struct dpp_global *dpp, const u8 *i_bootstrap,
 			break;
 	}
 
+}
+
+
+struct dpp_bootstrap_info *
+dpp_bootstrap_find_chirp_peer(struct dpp_global *dpp, const u8 *r_bootstrap_chirp)
+{
+	struct dpp_bootstrap_info *bi;
+
+	if (!dpp)
+		return NULL;
+
+	dl_list_for_each(bi, &dpp->bootstrap, struct dpp_bootstrap_info, list) {
+		if (os_memcmp(bi->pubkey_hash_chirp, r_bootstrap_chirp,
+				SHA256_MAC_LEN) == 0)
+			return bi;
+	}
+	return NULL;
 }
 
 
@@ -9490,6 +9579,7 @@ struct dpp_global * dpp_global_init(struct dpp_global_config *config)
 #ifdef CONFIG_DPP2
 	dl_list_init(&dpp->controllers);
 	dl_list_init(&dpp->tcp_init);
+	dl_list_init(&dpp->pending_auths);
 #endif /* CONFIG_DPP2 */
 
 	return dpp;
@@ -10270,6 +10360,8 @@ static int dpp_controller_rx_action(struct dpp_connection *conn, const u8 *msg,
 	case DPP_PA_CONNECTION_STATUS_RESULT:
 		return dpp_controller_rx_conn_status_result(conn, msg, pos,
 							    end - pos);
+	case DPP_PA_PRESENCE_ANNOUNCEMENT:
+		/* TODO DPP CHIRP P2 (fallthrough) */
 	default:
 		/* TODO: missing messages types */
 		wpa_printf(MSG_DEBUG,
@@ -10799,4 +10891,122 @@ void dpp_controller_stop(struct dpp_global *dpp)
 	}
 }
 
+
+static struct wpabuf * dpp_announce_presence_build_req(
+					const u8 *r_pubkey_hash)
+{
+	struct wpabuf *msg;
+	size_t len = 4 + SHA256_MAC_LEN;
+
+	msg = dpp_alloc_msg(DPP_PA_PRESENCE_ANNOUNCEMENT, len);
+	if (!msg)
+		return NULL;
+
+	dpp_build_attr_r_bootstrap_key_hash(msg, r_pubkey_hash);
+
+	wpa_hexdump_buf(MSG_DEBUG,
+			"DPP: Presence Announcement frame attributes", msg);
+
+	return msg;
+}
+
+
+struct dpp_announce_presence *
+dpp_announce_presence_init(struct dpp_bootstrap_info *bi,
+				struct hostapd_hw_modes *own_modes,
+				u16 num_modes)
+{
+	struct dpp_announce_presence *announce;
+
+	announce = os_zalloc(sizeof(*announce));
+	if (!announce)
+		return NULL;
+
+	announce->bi = bi;
+	announce->req_msg = dpp_announce_presence_build_req(bi->pubkey_hash_chirp);
+	if (!announce->req_msg ||
+		dpp_prepare_chirp_channel_list(announce, own_modes, num_modes) < 0)
+		goto fail;
+
+out:
+	return announce;
+fail:
+	dpp_announce_presence_deinit(announce);
+	announce = NULL;
+	goto out;
+}
+
+
+void dpp_announce_presence_deinit(
+			struct dpp_announce_presence *announce)
+{
+	wpabuf_free(announce->req_msg);
+	bin_clear_free(announce, sizeof(*announce));
+}
+
+
+struct dpp_bootstrap_info *
+dpp_rx_announce_presence(void *msg_ctx, struct dpp_global *dpp,
+				u8 dpp_allowed_roles, const u8 *src, const u8 *hdr,
+				const u8 *buf, size_t len, unsigned int freq)
+{
+	const u8 *r_bootstrap_chirp;
+	u16 r_bootstrap_chirp_len;
+	struct dpp_bootstrap_info *bi;
+
+	wpa_printf(MSG_DEBUG, "DPP: Presence Announcement from " MACSTR,
+		   MAC2STR(src));
+
+	if (!(dpp_allowed_roles & DPP_CAPAB_CONFIGURATOR)) {
+		wpa_printf(MSG_DEBUG, "DPP: Ignoring Presence Announcment");
+		goto fail;
+	}
+
+	r_bootstrap_chirp = dpp_get_attr(buf, len, DPP_ATTR_R_BOOTSTRAP_KEY_HASH,
+					&r_bootstrap_chirp_len);
+	if (!r_bootstrap_chirp || r_bootstrap_chirp_len != SHA256_MAC_LEN) {
+		wpa_msg(msg_ctx, MSG_INFO, DPP_EVENT_FAIL
+			"Missing or invalid required Responder Bootstrapping Key Hash attribute");
+		goto fail;
+	}
+	wpa_hexdump(MSG_MSGDUMP, "DPP: Responder Bootstrapping Key Hash",
+		    r_bootstrap_chirp, r_bootstrap_chirp_len);
+
+	bi = dpp_bootstrap_find_chirp_peer(dpp, r_bootstrap_chirp);
+	if (!bi) {
+		wpa_printf(MSG_INFO,
+			"No matching peer bootstrapping key found - ignore message");
+		goto fail;
+	}
+
+	bi->freq[0] = freq;
+	bi->num_freq = 1;
+
+out:
+	return bi;
+fail:
+	bi = NULL;
+	goto out;
+}
+
+
+struct dpp_authentication * dpp_auth_find_pending(struct dpp_global *dpp,
+	struct dpp_bootstrap_info *peer_bi)
+{
+	struct dpp_authentication *auth;
+
+	dl_list_for_each(auth, &dpp->pending_auths,
+				struct dpp_authentication, pending) {
+		if (peer_bi->id == auth->peer_bi->id)
+			return auth;
+	}
+	return NULL;
+}
+
+
+void dpp_auth_add_pending(struct dpp_global *dpp,
+	struct dpp_authentication *auth)
+{
+	dl_list_add(&dpp->pending_auths, &auth->pending);
+}
 #endif /* CONFIG_DPP2 */

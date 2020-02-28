@@ -659,6 +659,12 @@ static int wpa_supplicant_ctrl_iface_set(struct wpa_supplicant *wpa_s,
 		wpa_s->dpp_resp_max_tries = atoi(value);
 	} else if (os_strcasecmp(cmd, "dpp_resp_retry_time") == 0) {
 		wpa_s->dpp_resp_retry_time = atoi(value);
+#ifdef CONFIG_DPP2
+	} else if (os_strcasecmp(cmd, "dpp_announce_retry_time") == 0) {
+		wpa_s->dpp_announce_retry_time = atoi(value);
+	} else if (os_strcasecmp(cmd, "dpp_announce_max_tries") == 0) {
+		wpa_s->dpp_announce_max_tries = atoi(value);
+#endif /* CONFIG_DPP2 */
 #ifdef CONFIG_TESTING_OPTIONS
 	} else if (os_strcasecmp(cmd, "dpp_pkex_own_mac_override") == 0) {
 		if (hwaddr_aton(value, dpp_pkex_own_mac_override))
@@ -10914,6 +10920,11 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 			reply_len = -1;
 	} else if (os_strcmp(buf, "DPP_CONTROLLER_STOP") == 0) {
 		dpp_controller_stop(wpa_s->dpp);
+	} else if (os_strncmp(buf, "DPP_ANNOUNCE_PRESENCE_START ", 28) == 0) {
+		if (wpas_dpp_announce_presence(wpa_s, buf + 28) < 0)
+			reply_len = -1;
+	} else if (os_strncmp(buf, "DPP_ANNOUNCE_PRESENCE_STOP", 26) == 0) {
+		wpas_dpp_announce_presence_stop(wpa_s);
 #endif /* CONFIG_DPP2 */
 #endif /* CONFIG_DPP */
 	} else {

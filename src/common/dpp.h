@@ -36,6 +36,7 @@ enum dpp_public_action_frame_type {
 	DPP_PA_PKEX_COMMIT_REVEAL_RESP = 10,
 	DPP_PA_CONFIGURATION_RESULT = 11,
 	DPP_PA_CONNECTION_STATUS_RESULT = 12,
+	DPP_PA_PRESENCE_ANNOUNCEMENT = 13,
 };
 
 enum dpp_attribute_id {
@@ -107,6 +108,7 @@ enum dpp_bootstrap_type {
 	DPP_BOOTSTRAP_QR_CODE,
 	DPP_BOOTSTRAP_PKEX,
 	DPP_BOOTSTRAP_NFC_URI,
+	DPP_BOOTSTRAP_CHIRP,
 };
 
 struct dpp_bootstrap_info {
@@ -123,6 +125,7 @@ struct dpp_bootstrap_info {
 	int own;
 	EVP_PKEY *pubkey;
 	u8 pubkey_hash[SHA256_MAC_LEN];
+	u8 pubkey_hash_chirp[SHA256_MAC_LEN];
 	const struct dpp_curve_params *curve;
 	unsigned int pkex_t; /* number of failures before dpp_pkex
 			      * instantiation */
@@ -271,6 +274,7 @@ struct dpp_authentication {
 	char *groups_override;
 	unsigned int ignore_netaccesskey_mismatch:1;
 #endif /* CONFIG_TESTING_OPTIONS */
+	struct dl_list pending;
 };
 
 struct dpp_configurator {
@@ -302,6 +306,17 @@ struct dpp_relay_config {
 struct dpp_controller_config {
 	const char *configurator_params;
 	int tcp_port;
+};
+
+struct dpp_announce_presence {
+	struct dpp_bootstrap_info *bi;
+	struct wpabuf *req_msg;
+	int req_ack;
+	unsigned int freq[DPP_BOOTSTRAP_MAX_FREQ];
+	unsigned int num_freq, freq_idx;
+	unsigned int curr_freq;
+	unsigned int num_freq_iters;
+	unsigned int num_tries;
 };
 
 #ifdef CONFIG_TESTING_OPTIONS
@@ -428,6 +443,10 @@ struct dpp_authentication * dpp_auth_init(void *msg_ctx,
 					  unsigned int neg_freq,
 					  struct hostapd_hw_modes *own_modes,
 					  u16 num_modes);
+void dpp_auth_add_pending(struct dpp_global *dpp,
+					  struct dpp_authentication *auth);
+struct dpp_authentication * dpp_auth_find_pending(struct dpp_global *dpp,
+					  struct dpp_bootstrap_info *peer_bi);
 struct dpp_authentication *
 dpp_auth_req_rx(void *msg_ctx, u8 dpp_allowed_roles, int qr_mutual,
 		struct dpp_bootstrap_info *peer_bi,
@@ -554,6 +573,8 @@ void dpp_bootstrap_find_pair(struct dpp_global *dpp, const u8 *i_bootstrap,
 			     const u8 *r_bootstrap,
 			     struct dpp_bootstrap_info **own_bi,
 			     struct dpp_bootstrap_info **peer_bi);
+struct dpp_bootstrap_info *
+dpp_bootstrap_find_peer(struct dpp_global *dpp, const u8 *r_bootstrap);
 int dpp_configurator_add(struct dpp_global *dpp, const char *cmd);
 int dpp_configurator_remove(struct dpp_global *dpp, const char *id);
 int dpp_configurator_get_key_id(struct dpp_global *dpp, unsigned int id,
@@ -580,6 +601,17 @@ struct dpp_global_config {
 struct dpp_global * dpp_global_init(struct dpp_global_config *config);
 void dpp_global_clear(struct dpp_global *dpp);
 void dpp_global_deinit(struct dpp_global *dpp);
+
+struct dpp_announce_presence * dpp_announce_presence_init(
+			struct dpp_bootstrap_info *bi,
+			struct hostapd_hw_modes *own_modes,
+			u16 num_modes);
+struct dpp_bootstrap_info *
+dpp_rx_announce_presence(void *msg_ctx, struct dpp_global *dpp,
+				u8 dpp_allowed_roles, const u8 *src, const u8 *hdr,
+				const u8 *buf, size_t len, unsigned int freq);
+void dpp_announce_presence_deinit(
+			struct dpp_announce_presence *announce);
 
 #endif /* CONFIG_DPP */
 #endif /* DPP_H */
