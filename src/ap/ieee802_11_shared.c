@@ -1027,3 +1027,26 @@ u8 * hostapd_eid_rsnxe(struct hostapd_data *hapd, u8 *eid, size_t len)
 
 	return pos;
 }
+
+
+#ifdef CONFIG_DPP
+u8 * hostapd_eid_dpp_configurator(struct hostapd_data *hapd, u8 *eid,
+				size_t len)
+{
+	u8 *pos = eid;
+
+	if (len < 6) {
+		wpa_printf(MSG_DEBUG,
+			"DPP: Not enough room in the buffer for Configurator Connectivity IE");
+		return pos;
+	}
+
+	*pos++ = WLAN_EID_VENDOR_SPECIFIC;
+	*pos++ = 4;
+	WPA_PUT_BE24(pos, OUI_WFA);
+	pos += 3;
+	*pos++ = DPP_CONFIGURATOR_OUI_TYPE;
+
+	return pos;
+}
+#endif /* CONFIG_DPP */
