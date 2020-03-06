@@ -187,7 +187,7 @@ void auth_sae_process_commit(void *eloop_ctx, void *user_ctx);
 u8 * hostapd_eid_rsnxe(struct hostapd_data *hapd, u8 *eid, size_t len);
 
 #ifdef CONFIG_DPP
-u8 * hostapd_eid_dpp_cfg_connectivity(struct hostapd_data *hapd, u8 *eid,
+u8 * hostapd_eid_dpp_configurator(struct hostapd_data *hapd, u8 *eid,
 				size_t len);
 #endif /* CONFIG_DPP */
 

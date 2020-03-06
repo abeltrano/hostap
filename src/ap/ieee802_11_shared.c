@@ -1030,7 +1030,7 @@ u8 * hostapd_eid_rsnxe(struct hostapd_data *hapd, u8 *eid, size_t len)
 
 
 #ifdef CONFIG_DPP
-u8 * hostapd_eid_dpp_cfg_connectivity(struct hostapd_data *hapd, u8 *eid,
+u8 * hostapd_eid_dpp_configurator(struct hostapd_data *hapd, u8 *eid,
 				size_t len)
 {
 	u8 *pos = eid;
@@ -1045,7 +1045,7 @@ u8 * hostapd_eid_dpp_cfg_connectivity(struct hostapd_data *hapd, u8 *eid,
 	*pos++ = 4;
 	WPA_PUT_BE24(pos, OUI_WFA);
 	pos += 3;
-	*pos++ = 0x1E;
+	*pos++ = DPP_CONFIGURATOR_OUI_TYPE;
 
 	return pos;
 }

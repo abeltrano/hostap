@@ -199,7 +199,7 @@ int hostapd_build_ap_extra_ies(struct hostapd_data *hapd,
 #endif /* CONFIG_OWE */
 
 #ifdef CONFIG_DPP
-	pos = hostapd_eid_dpp_cfg_connectivity(hapd, buf, sizeof(buf));
+	pos = hostapd_eid_dpp_configurator(hapd, buf, sizeof(buf));
 	if (add_buf_data(&beacon, buf, pos - buf) < 0 ||
 		add_buf_data(&proberesp, buf, pos - buf) < 0)
 		goto fail;
