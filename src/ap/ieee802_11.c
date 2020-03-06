@@ -3363,7 +3363,7 @@ static u16 check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
 
 		wpa_auth_set_dpp_z(sta->wpa_sm, sta->dpp_pfs ?
 				   sta->dpp_pfs->secret : NULL);
-	pfs_fail:
+	pfs_fail:;
 #endif /* CONFIG_DPP2 */
 
 #ifdef CONFIG_IEEE80211N
