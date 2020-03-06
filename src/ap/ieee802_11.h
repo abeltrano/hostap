@@ -186,4 +186,9 @@ int get_tx_parameters(struct sta_info *sta, int ap_max_chanwidth,
 void auth_sae_process_commit(void *eloop_ctx, void *user_ctx);
 u8 * hostapd_eid_rsnxe(struct hostapd_data *hapd, u8 *eid, size_t len);
 
+#ifdef CONFIG_DPP
+u8 * hostapd_eid_dpp_cfg_connectivity(struct hostapd_data *hapd, u8 *eid,
+				size_t len);
+#endif /* CONFIG_DPP */
+
 #endif /* IEEE802_11_H */
