@@ -92,6 +92,8 @@ enum dpp_status_error {
 #define DPP_MAX_NONCE_LEN 32
 #define DPP_MAX_HASH_LEN 64
 #define DPP_MAX_SHARED_SECRET_LEN 66
+#define DPP_PRESENCE_ANNOUNCE_MAX_FREQ \
+(3 + DPP_BOOTSTRAP_MAX_FREQ)
 
 struct dpp_curve_params {
 	const char *name;
@@ -312,7 +314,7 @@ struct dpp_announce_presence {
 	struct dpp_bootstrap_info *bi;
 	struct wpabuf *req_msg;
 	int req_ack;
-	unsigned int freq[DPP_BOOTSTRAP_MAX_FREQ];
+	unsigned int freq[DPP_PRESENCE_ANNOUNCE_MAX_FREQ];
 	unsigned int num_freq, freq_idx;
 	unsigned int curr_freq;
 	unsigned int num_freq_iters;

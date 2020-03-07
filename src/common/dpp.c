@@ -2181,6 +2181,7 @@ static int dpp_channel_chirp_list(
 				struct hostapd_hw_modes *own_modes,
 				u16 num_modes)
 {
+	int freq;
 	announce->num_freq = 0;
 
 	if (dpp_channel_ok_init(own_modes, num_modes, 2437))
@@ -2192,6 +2193,14 @@ static int dpp_channel_chirp_list(
 	if (dpp_channel_ok_init(own_modes, num_modes, 6048))
 		announce->freq[announce->num_freq++] = 6048;
 
+	for (int i = 0; i < announce->bi->num_freq; i++) {
+		freq = announce->bi->freq[i];
+		if (freq_included(announce->freq, announce->num_freq, freq))
+			continue;
+		else if (dpp_channel_ok_init(own_modes, num_modes, freq))
+			announce->freq[announce->num_freq++] = freq;
+	}
+
 	return announce->num_freq == 0 ? -1 : 0;
 }
 
@@ -2202,7 +2211,7 @@ static int dpp_prepare_chirp_channel_list(
 				u16 num_modes)
 {
 	int res;
-	char freqs[DPP_BOOTSTRAP_MAX_FREQ * 6 + 10], *pos, *end;
+	char freqs[DPP_PRESENCE_ANNOUNCE_MAX_FREQ * 6 + 10], *pos, *end;
 	unsigned int i;
 
 	res = dpp_channel_chirp_list(announce, own_modes, num_modes);
