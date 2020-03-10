@@ -313,6 +313,7 @@ struct dpp_controller_config {
 struct dpp_announce_presence {
 	struct dpp_bootstrap_info *bi;
 	struct wpabuf *req_msg;
+	int scan;
 	int req_ack;
 	unsigned int freq[DPP_PRESENCE_ANNOUNCE_MAX_FREQ];
 	unsigned int num_freq, freq_idx;
@@ -605,15 +606,17 @@ void dpp_global_clear(struct dpp_global *dpp);
 void dpp_global_deinit(struct dpp_global *dpp);
 
 struct dpp_announce_presence * dpp_announce_presence_init(
-			struct dpp_bootstrap_info *bi,
-			struct hostapd_hw_modes *own_modes,
-			u16 num_modes);
+			struct dpp_bootstrap_info *bi, int scan);
 struct dpp_bootstrap_info *
 dpp_rx_announce_presence(void *msg_ctx, struct dpp_global *dpp,
 				u8 dpp_allowed_roles, const u8 *src, const u8 *hdr,
 				const u8 *buf, size_t len, unsigned int freq);
 void dpp_announce_presence_deinit(
 			struct dpp_announce_presence *announce);
-
+void dpp_prepare_chirp_channel_list(
+				struct dpp_announce_presence *announce,
+				unsigned int *freq, unsigned int num_freq,
+				struct hostapd_hw_modes *own_modes,
+				u16 num_modes);
 #endif /* CONFIG_DPP */
 #endif /* DPP_H */
