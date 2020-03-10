@@ -10922,6 +10922,9 @@ dpp_announce_presence_init(struct dpp_bootstrap_info *bi,
 	if (!announce)
 		return NULL;
 
+	if (dpp_bootstrap_key_hash(bi) < 0)
+		goto fail;
+
 	announce->bi = bi;
 	announce->req_msg = dpp_announce_presence_build_req(bi->pubkey_hash_chirp);
 	if (!announce->req_msg ||
