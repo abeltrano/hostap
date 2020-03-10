@@ -1840,7 +1840,7 @@ static void wpas_dpp_announce_presence_scan_res_handler(
 					struct wpa_supplicant *wpa_s,
 					struct wpa_scan_results *scan_res)
 {
-	unsigned int freq[DPP_PRESENCE_ANNOUNCE_MAX_FREQ];
+	unsigned int freq[DPP_PRESENCE_ANNOUNCE_MAX_TARGETED_FREQ];
 	unsigned int num_freq = 0;
 
 	wpa_msg(wpa_s, MSG_DEBUG, "DPP: Scan for presence announcement completed");
@@ -1854,8 +1854,14 @@ static void wpas_dpp_announce_presence_scan_res_handler(
 
 	for (int i = 0; i < scan_res->num; i++) {
 		struct wpa_scan_res *bss = scan_res->res[i];
-		if (wpa_scan_get_vendor_ie(bss, DPP_CONFIGURATOR_IE_VENDOR_TYPE))
+		if (wpa_scan_get_vendor_ie(bss, DPP_CONFIGURATOR_IE_VENDOR_TYPE)) {
 			freq[num_freq++] = bss->freq;
+			if (num_freq == ARRAY_SIZE(freq)) {
+				wpa_printf(MSG_DEBUG, "DPP: Ignoring %u excess targeted frequencies",
+					scan_res->num - i);
+				break;
+			}
+		}
 	}
 
 	wpas_dpp_announce_presence_now(wpa_s, freq, num_freq);
