@@ -45,6 +45,7 @@ wpas_dpp_tx_pkex_status(struct wpa_supplicant *wpa_s,
 			const u8 *src, const u8 *bssid,
 			const u8 *data, size_t data_len,
 			enum offchannel_send_action_result result);
+static int wpas_dpp_announce_presence_start(struct wpa_supplicant *wpa_s);
 static int wpas_dpp_announce_presence_next(struct wpa_supplicant *wpa_s);
 static void wpas_dpp_announce_presence_wait_timeout(void *eloop_ctx,
 				void *timeout_ctx);
@@ -1759,14 +1760,8 @@ static int wpas_dpp_announce_presence_next(struct wpa_supplicant *wpa_s)
 			max_tries = wpa_s->dpp_announce_max_tries;
 		else
 			max_tries = 4;
-		if (announce->num_freq_iters >= max_tries) {
-			wpa_printf(MSG_INFO,
-				"DPP: Authentication not initiated - stopping presence announcement");
-			offchannel_send_action_done(wpa_s);
-			dpp_announce_presence_deinit(announce);
-			wpa_s->dpp_announce = NULL;
-			return -1;
-		}
+		if (announce->num_freq_iters % max_tries == 0)
+			return wpas_dpp_announce_presence_start(wpa_s);
 
 		announce->freq_idx = 0;
 		if (wpa_s->dpp_announce_retry_time)
@@ -1802,6 +1797,7 @@ static int wpas_dpp_announce_presence_next(struct wpa_supplicant *wpa_s)
 
 int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 {
+	int noscan = 0;
 	const char *pos = cmd;
 	struct dpp_bootstrap_info *bi;
 	struct dpp_announce_presence *announce;
@@ -1812,19 +1808,76 @@ int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 		return -1;
 	}
 
+	// TODO: parse cmd to look for 'noscan' directive.
+
 	bi = dpp_bootstrap_get_id(wpa_s->dpp, atoi(pos));
 	if (!bi)
 		return -1;
 
-	announce = dpp_announce_presence_init(bi,
-					wpa_s->hw.modes, wpa_s->hw.num_modes);
+	announce = dpp_announce_presence_init(bi, !noscan);
 	if (!announce)
 		return -1;
 
 	wpa_s->dpp_announce = announce;
 	wpa_s->dpp_allowed_roles = DPP_CAPAB_ENROLLEE;
 
+	return wpas_dpp_announce_presence_start(wpa_s);
+}
+
+static int wpas_dpp_announce_presence_now(struct wpa_supplicant *wpa_s,
+				unsigned int *freq, unsigned int num_freq)
+{
+	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
+
+	dpp_prepare_chirp_channel_list(announce, freq, num_freq,
+					wpa_s->hw.modes, wpa_s->hw.num_modes);
+	wpa_msg(wpa_s, MSG_INFO, "DPP: Begin Presence Announcement");
 	return wpas_dpp_announce_presence_next(wpa_s);
+}
+
+
+static void wpas_dpp_announce_presence_scan_res_handler(
+					struct wpa_supplicant *wpa_s,
+					struct wpa_scan_results *scan_res)
+{
+	unsigned int freq[DPP_PRESENCE_ANNOUNCE_MAX_TARGETED_FREQ];
+	unsigned int num_freq = 0;
+
+	wpa_msg(wpa_s, MSG_DEBUG, "DPP: Scan for presence announcement completed");
+
+    if (!wpa_s->dpp_announce_waiting_scan) {
+		wpa_printf(MSG_DEBUG, "DPP: Scan results ignored (timeout)");
+		return;
+	}
+
+	wpa_s->dpp_announce_waiting_scan = 0;
+
+	for (int i = 0; i < scan_res->num; i++) {
+		struct wpa_scan_res *bss = scan_res->res[i];
+		if (wpa_scan_get_vendor_ie(bss, DPP_CONFIGURATOR_IE_VENDOR_TYPE)) {
+			freq[num_freq++] = bss->freq;
+			if (num_freq == ARRAY_SIZE(freq)) {
+				wpa_printf(MSG_DEBUG, "DPP: Ignoring %u excess targeted frequencies",
+					scan_res->num - i);
+				break;
+			}
+		}
+	}
+
+	wpas_dpp_announce_presence_now(wpa_s, freq, num_freq);
+}
+
+
+static void wpas_dpp_announce_presence_scan(struct wpa_supplicant *wpa_s)
+{
+	wpa_s->scan_req = MANUAL_SCAN_REQ;
+	wpa_s->normal_scans = 0;
+	wpa_s->dpp_announce_waiting_scan = 1;
+	wpa_s->scan_res_handler = wpas_dpp_announce_presence_scan_res_handler;
+	// TODO: set a timer to kick off chirping if scan takes too long.
+	// omit canceling scheduled scans since no association needed.
+	wpa_msg(wpa_s, MSG_DEBUG, "DPP: Start scan for presence announcement");
+	wpa_supplicant_req_scan(wpa_s, 0, 0);
 }
 
 
@@ -1838,6 +1891,17 @@ void wpas_dpp_announce_presence_stop(struct wpa_supplicant *wpa_s)
 	wpa_s->dpp_announce = NULL;
 }
 
+
+static int wpas_dpp_announce_presence_start(struct wpa_supplicant *wpa_s)
+{
+	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
+	if (announce->scan) {
+		wpas_dpp_announce_presence_scan(wpa_s);
+		return 0;
+	}
+
+	return wpas_dpp_announce_presence_now(wpa_s, NULL, 0);
+}
 #endif /* CONFIG_DPP2 */
 
 

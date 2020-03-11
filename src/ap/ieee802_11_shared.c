@@ -1035,7 +1035,7 @@ u8 * hostapd_eid_dpp_configurator(struct hostapd_data *hapd, u8 *eid,
 {
 	u8 *pos = eid;
 
-	if (len < 6) {
+	if (len < HOSTAPD_EID_DPP_CONFIGURATOR_LEN) {
 		wpa_printf(MSG_DEBUG,
 			"DPP: Not enough room in the buffer for Configurator Connectivity IE");
 		return pos;

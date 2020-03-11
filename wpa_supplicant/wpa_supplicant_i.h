@@ -1272,6 +1272,7 @@ struct wpa_supplicant {
 	struct dpp_announce_presence *dpp_announce;
 	unsigned int dpp_announce_retry_time;
 	unsigned int dpp_announce_max_tries;
+	unsigned int dpp_announce_waiting_scan;
 #endif /* CONFIG_DPP2 */
 #ifdef CONFIG_TESTING_OPTIONS
 	char *dpp_config_obj_override;

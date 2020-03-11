@@ -2176,42 +2176,65 @@ static int dpp_channel_local_list(struct dpp_authentication *auth,
 }
 
 
-static int dpp_channel_chirp_list(
+void dpp_channel_chirp_list_update(
 				struct dpp_announce_presence *announce,
-				struct hostapd_hw_modes *own_modes,
-				u16 num_modes)
+				unsigned int *freq, unsigned int num_freq,
+				struct hostapd_hw_modes *own_modes, u16 num_modes)
 {
-	announce->num_freq = 0;
+	unsigned int i;
 
-	if (dpp_channel_ok_init(own_modes, num_modes, 2437))
-		announce->freq[announce->num_freq++] = 2437;
-	if (dpp_channel_ok_init(own_modes, num_modes, 5220))
-		announce->freq[announce->num_freq++] = 5220;
-	else if (dpp_channel_ok_init(own_modes, num_modes, 5745))
-		announce->freq[announce->num_freq++] = 5745;
-	if (dpp_channel_ok_init(own_modes, num_modes, 6048))
-		announce->freq[announce->num_freq++] = 6048;
-
-	return announce->num_freq == 0 ? -1 : 0;
+	for (i = 0; i < num_freq; i++) {
+		if (announce->num_freq >= ARRAY_SIZE(announce->freq)) {
+			wpa_printf(MSG_DEBUG, "DPP: Ignoring %u excess chirp frequencies",
+				num_freq - i);
+			break;
+		}
+		else if (freq_included(announce->freq, announce->num_freq, freq[i]))
+			continue;
+		else if (dpp_channel_ok_init(own_modes, num_modes, freq[i]))
+			announce->freq[announce->num_freq++] = freq[i];
+	}
 }
 
 
-static int dpp_prepare_chirp_channel_list(
+static void dpp_channel_chirp_list_preferred(
 				struct dpp_announce_presence *announce,
+				struct hostapd_hw_modes *own_modes, u16 num_modes)
+{
+	unsigned int freq[3];
+
+	freq[0] = 2437;
+	freq[1] = dpp_channel_ok_init(own_modes, num_modes, 5745) ? 5745 : 5220;
+	freq[2] = 6048;
+
+	dpp_channel_chirp_list_update(announce, freq, ARRAY_SIZE(freq),
+					own_modes, num_modes);
+}
+
+
+static void dpp_channel_chirp_list_global(
+				struct dpp_announce_presence *announce,
+				struct hostapd_hw_modes *own_modes, u16 num_modes)
+{
+	dpp_channel_chirp_list_update(announce, announce->bi->freq,
+					announce->bi->num_freq, own_modes, num_modes);
+}
+
+
+void dpp_prepare_chirp_channel_list(
+				struct dpp_announce_presence *announce,
+				unsigned int *freq, unsigned int num_freq,
 				struct hostapd_hw_modes *own_modes,
 				u16 num_modes)
 {
 	int res;
-	char freqs[DPP_BOOTSTRAP_MAX_FREQ * 6 + 10], *pos, *end;
+	char freqs[DPP_PRESENCE_ANNOUNCE_MAX_FREQ * 6 + 10], *pos, *end;
 	unsigned int i;
 
-	res = dpp_channel_chirp_list(announce, own_modes, num_modes);
-	if (res < 0)
-		return res;
-
-	/* TODO: scan all supported bands and add each channel advertising
-	 * configurator connectivity IE.
-	 */
+	announce->num_freq = 0;
+	dpp_channel_chirp_list_preferred(announce, own_modes, num_modes);
+	dpp_channel_chirp_list_update(announce, freq, num_freq, own_modes, num_modes);
+	dpp_channel_chirp_list_global(announce, own_modes, num_modes);
 
 	announce->freq_idx = 0;
 	announce->curr_freq = announce->freq[0];
@@ -2225,10 +2248,8 @@ static int dpp_prepare_chirp_channel_list(
 		pos += res;
 	}
 	*pos = '\0';
-	wpa_printf(MSG_DEBUG, "DPP: Possible frequencies for chirping:%s",
+	wpa_printf(MSG_DEBUG, "DPP: Presence Announcement frequencies:%s",
 		   freqs);
-
-	return 0;
 }
 
 
@@ -10912,9 +10933,7 @@ static struct wpabuf * dpp_announce_presence_build_req(
 
 
 struct dpp_announce_presence *
-dpp_announce_presence_init(struct dpp_bootstrap_info *bi,
-				struct hostapd_hw_modes *own_modes,
-				u16 num_modes)
+dpp_announce_presence_init(struct dpp_bootstrap_info *bi, int scan)
 {
 	struct dpp_announce_presence *announce;
 
@@ -10926,9 +10945,9 @@ dpp_announce_presence_init(struct dpp_bootstrap_info *bi,
 		goto fail;
 
 	announce->bi = bi;
+	announce->scan = scan;
 	announce->req_msg = dpp_announce_presence_build_req(bi->pubkey_hash_chirp);
-	if (!announce->req_msg ||
-		dpp_prepare_chirp_channel_list(announce, own_modes, num_modes) < 0)
+	if (!announce->req_msg)
 		goto fail;
 
 out:
