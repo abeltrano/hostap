@@ -994,6 +994,9 @@ static void wpas_dpp_rx_auth_req(struct wpa_supplicant *wpa_s, const u8 *src,
 	wpa_printf(MSG_DEBUG, "DPP: Authentication Request from " MACSTR,
 		   MAC2STR(src));
 
+	if (wpa_s->dpp_announce)
+		wpas_dpp_announce_presence_stop(wpa_s);
+
 	r_bootstrap = dpp_get_attr(buf, len, DPP_ATTR_R_BOOTSTRAP_KEY_HASH,
 				   &r_bootstrap_len);
 	if (!r_bootstrap || r_bootstrap_len != SHA256_MAC_LEN) {
@@ -1888,6 +1891,7 @@ void wpas_dpp_announce_presence_stop(struct wpa_supplicant *wpa_s)
 		return;
 	eloop_cancel_timeout(wpas_dpp_announce_presence_wait_timeout, wpa_s, NULL);
 	dpp_announce_presence_deinit(announce);
+	wpa_s->dpp_announce_waiting_scan = 0;
 	wpa_s->dpp_announce = NULL;
 }
 
