@@ -406,6 +406,10 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
 	buflen += hostapd_mbo_ie_len(hapd);
 	buflen += hostapd_eid_owe_trans_len(hapd);
 
+#ifdef CONFIG_DPP
+	buflen += HOSTAPD_EID_DPP_CONFIGURATOR_LEN;
+#endif /* CONFIG_DPP */
+
 	resp = os_zalloc(buflen);
 	if (resp == NULL)
 		return NULL;
@@ -560,6 +564,10 @@ static u8 * hostapd_gen_probe_resp(struct hostapd_data *hapd,
 
 	pos = hostapd_eid_mbo(hapd, pos, (u8 *) resp + buflen - pos);
 	pos = hostapd_eid_owe_trans(hapd, pos, (u8 *) resp + buflen - pos);
+
+#ifdef CONFIG_DPP
+	pos = hostapd_eid_dpp_configurator(hapd, pos, (u8 *) resp + buflen - pos);
+#endif /* CONFIG_DPP */
 
 	if (hapd->conf->vendor_elements) {
 		os_memcpy(pos, wpabuf_head(hapd->conf->vendor_elements),
