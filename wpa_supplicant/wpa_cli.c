@@ -3701,7 +3701,7 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 #ifdef CONFIG_DPP2
 	{ "dpp_chirp", wpa_cli_cmd_dpp_announce_presence_start,
 	  NULL, cli_cmd_flag_none,
-	  "= start DPP presence announcement (chirp)" },
+	  "<id> [noscan] = start DPP presence announcement (chirp)" },
 	{ "dpp_stop_chirp", wpa_cli_cmd_dpp_announce_presence_stop,
 	  NULL, cli_cmd_flag_none,
 	  "= stop DPP presence announcement (chirp)" },
