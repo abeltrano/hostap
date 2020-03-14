@@ -1770,8 +1770,8 @@ static int wpas_dpp_announce_presence_next(struct wpa_supplicant *wpa_s)
 		if (wpa_s->dpp_announce_retry_time)
 			wait_time = wpa_s->dpp_announce_retry_time;
 		else
-			wait_time = 30;
-		eloop_register_timeout(wait_time, 0,
+			wait_time = 30000;
+		eloop_register_timeout(wait_time / 1000, (wait_time % 1000) * 1000,
 						wpas_dpp_announce_presence_wait_timeout,
 						wpa_s, NULL);
 		return 0;
@@ -1781,7 +1781,10 @@ static int wpas_dpp_announce_presence_next(struct wpa_supplicant *wpa_s)
 
 	freq = announce->freq[announce->freq_idx++];
 	announce->curr_freq = freq;
-	wait_time = 2000;
+	if (wpa_s->dpp_announce_wait_time)
+		wait_time = wpa_s->dpp_announce_wait_time;
+	else
+		wait_time = 2000;
 	if (wait_time > wpa_s->max_remain_on_chan)
 		wait_time = wpa_s->max_remain_on_chan;
 	wait_time += 20;
@@ -1811,12 +1814,11 @@ int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 		return -1;
 	}
 
-	// TODO: parse cmd to look for 'noscan' directive.
-
 	bi = dpp_bootstrap_get_id(wpa_s->dpp, atoi(pos));
 	if (!bi)
 		return -1;
 
+	noscan = !!os_strstr(pos, " noscan");
 	announce = dpp_announce_presence_init(bi, !noscan);
 	if (!announce)
 		return -1;

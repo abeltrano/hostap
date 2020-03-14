@@ -660,6 +660,8 @@ static int wpa_supplicant_ctrl_iface_set(struct wpa_supplicant *wpa_s,
 	} else if (os_strcasecmp(cmd, "dpp_resp_retry_time") == 0) {
 		wpa_s->dpp_resp_retry_time = atoi(value);
 #ifdef CONFIG_DPP2
+	} else if (os_strcasecmp(cmd, "dpp_announce_wait_time") == 0) {
+		wpa_s->dpp_announce_wait_time = atoi(value);
 	} else if (os_strcasecmp(cmd, "dpp_announce_retry_time") == 0) {
 		wpa_s->dpp_announce_retry_time = atoi(value);
 	} else if (os_strcasecmp(cmd, "dpp_announce_max_tries") == 0) {
