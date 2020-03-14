@@ -992,6 +992,8 @@ static int dpp_parse_uri_pk(struct dpp_bootstrap_info *bi, const char *info)
 	const char *end;
 	u8 *data;
 	size_t data_len;
+	const u8 *addr[2];
+	size_t len[2];
 	EVP_PKEY *pkey;
 	const unsigned char *p;
 	int res;
@@ -1033,6 +1035,17 @@ static int dpp_parse_uri_pk(struct dpp_bootstrap_info *bi, const char *info)
 	}
 	wpa_hexdump(MSG_DEBUG, "DPP: Public key hash",
 		    bi->pubkey_hash, SHA256_MAC_LEN);
+
+	addr[0] = (u8 *)"chirp";
+	len[0] = 5;
+	addr[1] = data;
+	len[1] = data_len;
+	res = sha256_vector(2, addr, len, bi->pubkey_hash_chirp);
+	if (res < 0)
+		wpa_printf(MSG_DEBUG, "DPP: Failed to hash public key (chirp) %d", res);
+	else
+		wpa_hexdump(MSG_DEBUG, "DPP: Public key hash (chirp)",
+				bi->pubkey_hash_chirp, SHA256_MAC_LEN);
 
 	/* DER encoded ASN.1 SubjectPublicKeyInfo
 	 *
