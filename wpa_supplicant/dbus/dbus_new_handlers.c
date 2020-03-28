@@ -38,6 +38,7 @@
 #endif /* CONFIG_MESH */
 #ifdef CONFIG_DPP
 #include "common/dpp.h"
+#include "../dpp_supplicant.h"
 #endif
 
 static const char * const debug_strings[] = {
@@ -5579,5 +5580,64 @@ dbus_bool_t wpas_dbus_getter_dpp_netrole(
 	os_free(dpp_netrole_ls);
 
 	return success;
+}
+
+
+/*
+ * wpas_dbus_handler_dpp_announce_presence - Start DPP presence announcement
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL
+ *
+ * Handler function for "AnnouncePresence" method call of DPP interface.
+ */
+DBusMessage * wpas_dbus_handler_dpp_announce_presence(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s)
+{
+	DBusMessageIter iter_dict;
+	DBusMessage *reply = NULL;
+	DBusMessageIter iter;
+	struct wpa_dbus_dict_entry entry;
+	uint32_t id = 0;
+	int noscan = 0;
+
+	dbus_message_iter_init(message, &iter);
+
+	// If already announcing presence, claim success.
+	if (wpa_s->dpp_announce)
+		goto out;
+
+	if (!wpa_dbus_dict_open_read(&iter, &iter_dict, NULL))
+		goto err;
+
+	while (wpa_dbus_dict_has_dict_entry(&iter_dict)) {
+		if (!wpa_dbus_dict_get_entry(&iter_dict, &entry))
+			goto err;
+
+		if (os_strcmp(entry.key, "id") == 0 &&
+		    entry.type == DBUS_TYPE_UINT32) {
+            id = entry.uint32_value;
+		} else if (os_strcmp(entry.key, "noscan") == 0 &&
+			   entry.type == DBUS_TYPE_BOOLEAN) {
+			noscan = entry.bool_value;
+		} else {
+			wpa_dbus_dict_entry_clear(&entry);
+			goto err;
+		}
+	}
+
+	if (id == 0) {
+		reply = wpas_dbus_error_invalid_args(message, "bootstrap key id not provided");
+		goto out;
+	}
+	if (wpas_dpp_announce_presence2(wpa_s, id, noscan) < 0)
+		goto err;
+
+out:
+	return reply;
+
+err:
+	reply = wpas_dbus_error_invalid_args(message, NULL);
+	goto out;
 }
 #endif /* CONFIG_DPP */

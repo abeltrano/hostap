@@ -1803,8 +1803,16 @@ static int wpas_dpp_announce_presence_next(struct wpa_supplicant *wpa_s)
 
 int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 {
-	int noscan = 0;
 	const char *pos = cmd;
+	unsigned int id = atoi(pos);
+	int noscan = !!os_strstr(pos, " noscan");
+
+	return wpas_dpp_announce_presence2(wpa_s, id, noscan);
+}
+
+
+int wpas_dpp_announce_presence2(struct wpa_supplicant *wpa_s, unsigned int id, int noscan)
+{
 	struct dpp_bootstrap_info *bi;
 	struct dpp_announce_presence *announce;
 
@@ -1814,11 +1822,10 @@ int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 		return -1;
 	}
 
-	bi = dpp_bootstrap_get_id(wpa_s->dpp, atoi(pos));
+	bi = dpp_bootstrap_get_id(wpa_s->dpp, id);
 	if (!bi)
 		return -1;
 
-	noscan = !!os_strstr(pos, " noscan");
 	announce = dpp_announce_presence_init(bi, !noscan);
 	if (!announce)
 		return -1;
@@ -1828,6 +1835,7 @@ int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 
 	return wpas_dpp_announce_presence_start(wpa_s);
 }
+
 
 static int wpas_dpp_announce_presence_now(struct wpa_supplicant *wpa_s,
 				unsigned int *freq, unsigned int num_freq)

@@ -3558,6 +3558,15 @@ static const struct wpa_dbus_method_desc wpas_dbus_interface_methods[] = {
 		  END_ARGS
 	  }
 	},
+#ifdef CONFIG_DPP
+	{ "AnnouncePresence", WPAS_DBUS_NEW_IFACE_DPP,
+	  (WPADBusMethodHandler) wpas_dbus_handler_dpp_announce_presence,
+	  {
+		  { "args", "a{sv}", ARG_IN },
+		  END_ARGS
+	  }
+	},
+#endif /* CONFIG_DPP */
 	{ NULL, NULL, NULL, { END_ARGS } }
 };
 
@@ -3812,13 +3821,13 @@ static const struct wpa_dbus_property_desc wpas_dbus_interface_properties[] = {
 #ifdef CONFIG_DPP
 	{ "State", WPAS_DBUS_NEW_IFACE_DPP, "s",
       wpas_dbus_getter_dpp_state,
-	  NULL,
-	  NULL
+      NULL,
+      NULL
 	},
 	{ "Netrole", WPAS_DBUS_NEW_IFACE_DPP, "s",
       wpas_dbus_getter_dpp_netrole,
-	  NULL,
-	  NULL
+      NULL,
+      NULL
 	},
 #endif /* CONFIG_DPP */
 	{ NULL, NULL, NULL, NULL, NULL, NULL }

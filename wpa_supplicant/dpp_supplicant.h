@@ -36,6 +36,7 @@ void wpas_dpp_connected(struct wpa_supplicant *wpa_s);
 void wpas_dpp_send_conn_status_result(struct wpa_supplicant *wpa_s,
 				      enum dpp_status_error result);
 int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd);
+int wpas_dpp_announce_presence2(struct wpa_supplicant *wpa_s, unsigned int id, int noscan);
 void wpas_dpp_announce_presence_stop(struct wpa_supplicant *wpa_s);
 
 #endif /* DPP_SUPPLICANT_H */
