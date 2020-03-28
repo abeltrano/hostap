@@ -3809,6 +3809,18 @@ static const struct wpa_dbus_property_desc wpas_dbus_interface_properties[] = {
 	  wpas_dbus_setter_mac_address_randomization_mask,
 	  NULL
 	},
+#ifdef CONFIG_DPP
+	{ "State", WPAS_DBUS_NEW_IFACE_DPP, "s",
+      wpas_dbus_getter_dpp_state,
+	  NULL,
+	  NULL
+	},
+	{ "Netrole", WPAS_DBUS_NEW_IFACE_DPP, "s",
+      wpas_dbus_getter_dpp_netrole,
+	  NULL,
+	  NULL
+	},
+#endif /* CONFIG_DPP */
 	{ NULL, NULL, NULL, NULL, NULL, NULL }
 };
 

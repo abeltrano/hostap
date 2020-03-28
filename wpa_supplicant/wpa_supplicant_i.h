@@ -1244,6 +1244,7 @@ struct wpa_supplicant {
 	unsigned int dpp_pending_listen_freq;
 	unsigned int dpp_listen_freq;
 	u8 dpp_allowed_roles;
+	int dpp_state;
 	int dpp_qr_mutual;
 	int dpp_netrole;
 	int dpp_auth_ok_on_ack;

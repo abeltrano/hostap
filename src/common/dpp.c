@@ -33,7 +33,7 @@
 #include "dpp.h"
 
 
-static const char * dpp_netrole_str(enum dpp_netrole netrole);
+const char * dpp_netrole_str(enum dpp_netrole netrole);
 
 #ifdef CONFIG_TESTING_OPTIONS
 enum dpp_test_behavior dpp_test = DPP_TEST_DISABLED;
@@ -4862,7 +4862,7 @@ static void dpp_build_legacy_cred_params(struct wpabuf *buf,
 }
 
 
-static const char * dpp_netrole_str(enum dpp_netrole netrole)
+const char * dpp_netrole_str(enum dpp_netrole netrole)
 {
 	switch (netrole) {
 	case DPP_NETROLE_STA:
@@ -4871,6 +4871,33 @@ static const char * dpp_netrole_str(enum dpp_netrole netrole)
 		return "ap";
 	case DPP_NETROLE_CONFIGURATOR:
 		return "configurator";
+	default:
+		return "??";
+	}
+}
+
+
+const char * dpp_state_str(enum dpp_state state)
+{
+	switch (state) {
+	case DPP_STATE_INACTIVE:
+		return "inactive";
+	case DPP_STATE_ANNOUNCING_PRESENCE:
+		return "presence_announce";
+	case DPP_STATE_BOOTSTRAP_KEY_ACQUIRING:
+		return "bootstrap_key_acquiring";
+	case DPP_STATE_BOOTSTRAPPED:
+		return "bootstrapped";
+	case DPP_STATE_AUTHENTICATING:
+		return "authenticating";
+	case DPP_STATE_AUTHENTICATED:
+		return "authenticated";
+	case DPP_STATE_PROVISIONING:
+		return "provisioning";
+	case DPP_STATE_PROVISIONED:
+		return "provisioned";
+	case DPP_STATE_TERMINATED:
+		return "terminated";
 	default:
 		return "??";
 	}

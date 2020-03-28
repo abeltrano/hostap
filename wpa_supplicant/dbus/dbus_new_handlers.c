@@ -36,6 +36,9 @@
 #include "ap/hostapd.h"
 #include "ap/sta_info.h"
 #endif /* CONFIG_MESH */
+#ifdef CONFIG_DPP
+#include "common/dpp.h"
+#endif
 
 static const char * const debug_strings[] = {
 	"excessive", "msgdump", "debug", "info", "warning", "error", NULL
@@ -5495,3 +5498,86 @@ dbus_bool_t wpas_dbus_getter_mesh_group(
 }
 
 #endif /* CONFIG_MESH */
+
+#ifdef CONFIG_DPP
+
+/**
+ * wpas_dbus_getter_dpp_state - Get dpp state
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "State" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_state(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	const char *str_dpp_state;
+	char *dpp_state_ls, *tmp;
+	dbus_bool_t success = FALSE;
+
+	str_dpp_state = dpp_state_str(wpa_s->dpp_state);
+
+	/* make state string lowercase to fit new DBus API convention
+	 */
+	dpp_state_ls = tmp = os_strdup(str_dpp_state);
+	if (!tmp) {
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
+	}
+	while (*tmp) {
+		*tmp = tolower(*tmp);
+		tmp++;
+	}
+
+	success = wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						   &dpp_state_ls, error);
+
+	os_free(dpp_state_ls);
+
+	return success;
+}
+
+/**
+ * wpas_dbus_getter_dpp_netrole - Get dpp netrole
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "State" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_netrole(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	const char *str_dpp_netrole;
+	char *dpp_netrole_ls, *tmp;
+	dbus_bool_t success = FALSE;
+
+	str_dpp_netrole = dpp_netrole_str(wpa_s->dpp_netrole);
+
+	/* make state string lowercase to fit new DBus API convention
+	 */
+	dpp_netrole_ls = tmp = os_strdup(str_dpp_netrole);
+	if (!tmp) {
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
+	}
+	while (*tmp) {
+		*tmp = tolower(*tmp);
+		tmp++;
+	}
+
+	success = wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						   &dpp_netrole_ls, error);
+
+	os_free(dpp_netrole_ls);
+
+	return success;
+}
+#endif /* CONFIG_DPP */
