@@ -55,6 +55,10 @@ enum wpas_dbus_sta_prop {
 	WPAS_DBUS_STA_PROP_ADDRESS,
 };
 
+enum wpas_dbus_dpp_prop {
+	WPAS_DBUS_PROP_DPP_STATE,
+};
+
 #define WPAS_DBUS_OBJECT_PATH_MAX 150
 
 #define WPAS_DBUS_NEW_SERVICE		"fi.w1.wpa_supplicant1"
@@ -265,7 +269,8 @@ void wpas_dbus_signal_mesh_peer_connected(struct wpa_supplicant *wpa_s,
 					  const u8 *peer_addr);
 void wpas_dbus_signal_mesh_peer_disconnected(struct wpa_supplicant *wpa_s,
 					     const u8 *peer_addr, int reason);
-
+void wpas_dbus_dpp_signal_prop_changed(struct wpa_supplicant *wpa_s,
+				   enum wpas_dbus_dpp_prop property);
 #else /* CONFIG_CTRL_IFACE_DBUS_NEW */
 
 static inline int wpas_dbus_register_interface(struct wpa_supplicant *wpa_s)
@@ -614,6 +619,12 @@ void wpas_dbus_signal_mesh_peer_connected(struct wpa_supplicant *wpa_s,
 static inline
 void wpas_dbus_signal_mesh_peer_disconnected(struct wpa_supplicant *wpa_s,
 					     const u8 *peer_addr, int reason)
+{
+}
+
+static inline
+void wpas_dbus_signal_prop_changed(struct wpa_supplicant *wpa_s,
+				   enum wpas_dbus_dpp_prop property)
 {
 }
 

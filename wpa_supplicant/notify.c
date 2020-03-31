@@ -932,3 +932,12 @@ void wpas_notify_mesh_peer_disconnected(struct wpa_supplicant *wpa_s,
 }
 
 #endif /* CONFIG_MESH */
+
+#ifdef CONFIG_DPP
+
+void wpas_notify_dpp_state_changed(struct wpa_supplicant *wpa_s)
+{
+	wpas_dbus_dpp_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_DPP_STATE);
+}
+
+#endif /* CONFIG_DPP */

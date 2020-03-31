@@ -4979,3 +4979,43 @@ int wpas_dbus_unregister_persistent_group(struct wpa_supplicant *wpa_s,
 }
 
 #endif /* CONFIG_P2P */
+
+#ifdef CONFIG_DPP
+/**
+ * wpas_dbus_dpp_signal_prop_changed - Signals change of property
+ * @wpa_s: %wpa_supplicant network interface data
+ * @property: indicates which property has changed
+ *
+ * Sends PropertyChanged signals with path, interface and arguments
+ * depending on which property has changed.
+ */
+void wpas_dbus_dpp_signal_prop_changed(struct wpa_supplicant *wpa_s,
+				   enum wpas_dbus_dpp_prop property)
+{
+	char *prop;
+	dbus_bool_t flush;
+
+	if (wpa_s->dbus_new_path == NULL)
+		return; /* Skip signal since D-Bus setup is not yet ready */
+
+	flush = FALSE;
+	switch (property) {
+	case WPAS_DBUS_PROP_DPP_STATE:
+        prop = "State";
+		break;
+	default:
+		wpa_printf(MSG_ERROR, "dbus: %s: Unknown Property value %d",
+			   __func__, property);
+		return;
+	}
+
+	wpa_dbus_mark_property_changed(wpa_s->global->dbus,
+				       wpa_s->dbus_new_path,
+                       WPAS_DBUS_NEW_IFACE_DPP, prop);
+	if (flush) {
+		wpa_dbus_flush_object_changed_properties(
+			wpa_s->global->dbus->con, wpa_s->dbus_new_path);
+	}
+}
+
+#endif /* CONFIG_DPP */

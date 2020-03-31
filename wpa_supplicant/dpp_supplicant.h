@@ -11,6 +11,7 @@
 #define DPP_SUPPLICANT_H
 
 enum dpp_status_error;
+enum dpp_state;
 
 int wpas_dpp_qr_code(struct wpa_supplicant *wpa_s, const char *cmd);
 int wpas_dpp_nfc_uri(struct wpa_supplicant *wpa_s, const char *cmd);
@@ -38,5 +39,6 @@ void wpas_dpp_send_conn_status_result(struct wpa_supplicant *wpa_s,
 int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd);
 int wpas_dpp_announce_presence2(struct wpa_supplicant *wpa_s, unsigned int id, int noscan);
 void wpas_dpp_announce_presence_stop(struct wpa_supplicant *wpa_s);
+void wpas_dpp_set_state(struct wpa_supplicant *wpa_s, enum dpp_state dpp_state);
 
 #endif /* DPP_SUPPLICANT_H */

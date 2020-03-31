@@ -1427,6 +1427,7 @@ static void wpas_dpp_auth_success(struct wpa_supplicant *wpa_s, int initiator)
 {
 	wpa_printf(MSG_DEBUG, "DPP: Authentication succeeded");
 	wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_AUTH_SUCCESS "init=%d", initiator);
+	wpas_dpp_set_state(wpa_s, DPP_STATE_AUTHENTICATED);
 #ifdef CONFIG_TESTING_OPTIONS
 	if (dpp_test == DPP_TEST_STOP_AT_AUTH_CONF) {
 		wpa_printf(MSG_INFO,
@@ -1904,11 +1905,15 @@ void wpas_dpp_announce_presence_stop(struct wpa_supplicant *wpa_s)
 	dpp_announce_presence_deinit(announce);
 	wpa_s->dpp_announce_waiting_scan = 0;
 	wpa_s->dpp_announce = NULL;
+
+	wpas_dpp_set_state(wpa_s, DPP_STATE_INACTIVE);
 }
 
 
 static int wpas_dpp_announce_presence_start(struct wpa_supplicant *wpa_s)
 {
+	wpas_dpp_set_state(wpa_s, DPP_STATE_ANNOUNCING_PRESENCE);
+
 	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
 	if (announce->scan) {
 		wpas_dpp_announce_presence_scan(wpa_s);
@@ -1917,6 +1922,18 @@ static int wpas_dpp_announce_presence_start(struct wpa_supplicant *wpa_s)
 
 	return wpas_dpp_announce_presence_now(wpa_s, NULL, 0);
 }
+
+
+void wpas_dpp_set_state(struct wpa_supplicant *wpa_s, enum dpp_state dpp_state)
+{
+	if (wpa_s->dpp_state == dpp_state)
+		return;
+
+	wpa_s->dpp_state = dpp_state;
+	wpas_notify_dpp_state_changed(wpa_s);
+	// TODO: emit control interface event?
+}
+
 #endif /* CONFIG_DPP2 */
 
 
