@@ -1929,9 +1929,11 @@ void wpas_dpp_set_state(struct wpa_supplicant *wpa_s, enum dpp_state dpp_state)
 	if (wpa_s->dpp_state == dpp_state)
 		return;
 
+	enum dpp_state dpp_state_old = wpa_s->dpp_state;
 	wpa_s->dpp_state = dpp_state;
 	wpas_notify_dpp_state_changed(wpa_s);
-	// TODO: emit control interface event?
+	wpa_msg(wpa_s, MSG_DEBUG, "DPP: %s -> %s\n",
+		dpp_state_str(dpp_state_old), dpp_state_str(dpp_state));
 }
 
 #endif /* CONFIG_DPP2 */

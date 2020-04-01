@@ -5002,6 +5002,7 @@ void wpas_dbus_dpp_signal_prop_changed(struct wpa_supplicant *wpa_s,
 	switch (property) {
 	case WPAS_DBUS_PROP_DPP_STATE:
         prop = "State";
+        flush = TRUE;
 		break;
 	default:
 		wpa_printf(MSG_ERROR, "dbus: %s: Unknown Property value %d",
