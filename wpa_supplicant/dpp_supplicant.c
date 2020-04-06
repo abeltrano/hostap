@@ -1427,6 +1427,7 @@ static void wpas_dpp_auth_success(struct wpa_supplicant *wpa_s, int initiator)
 {
 	wpa_printf(MSG_DEBUG, "DPP: Authentication succeeded");
 	wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_AUTH_SUCCESS "init=%d", initiator);
+	wpas_dpp_set_state(wpa_s, DPP_STATE_AUTHENTICATED);
 #ifdef CONFIG_TESTING_OPTIONS
 	if (dpp_test == DPP_TEST_STOP_AT_AUTH_CONF) {
 		wpa_printf(MSG_INFO,
@@ -1803,8 +1804,16 @@ static int wpas_dpp_announce_presence_next(struct wpa_supplicant *wpa_s)
 
 int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 {
-	int noscan = 0;
 	const char *pos = cmd;
+	unsigned int id = atoi(pos);
+	int noscan = !!os_strstr(pos, " noscan");
+
+	return wpas_dpp_announce_presence2(wpa_s, id, noscan);
+}
+
+
+int wpas_dpp_announce_presence2(struct wpa_supplicant *wpa_s, unsigned int id, int noscan)
+{
 	struct dpp_bootstrap_info *bi;
 	struct dpp_announce_presence *announce;
 
@@ -1814,11 +1823,10 @@ int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 		return -1;
 	}
 
-	bi = dpp_bootstrap_get_id(wpa_s->dpp, atoi(pos));
+	bi = dpp_bootstrap_get_id(wpa_s->dpp, id);
 	if (!bi)
 		return -1;
 
-	noscan = !!os_strstr(pos, " noscan");
 	announce = dpp_announce_presence_init(bi, !noscan);
 	if (!announce)
 		return -1;
@@ -1828,6 +1836,7 @@ int wpas_dpp_announce_presence(struct wpa_supplicant *wpa_s, const char *cmd)
 
 	return wpas_dpp_announce_presence_start(wpa_s);
 }
+
 
 static int wpas_dpp_announce_presence_now(struct wpa_supplicant *wpa_s,
 				unsigned int *freq, unsigned int num_freq)
@@ -1896,11 +1905,15 @@ void wpas_dpp_announce_presence_stop(struct wpa_supplicant *wpa_s)
 	dpp_announce_presence_deinit(announce);
 	wpa_s->dpp_announce_waiting_scan = 0;
 	wpa_s->dpp_announce = NULL;
+
+	wpas_dpp_set_state(wpa_s, DPP_STATE_INACTIVE);
 }
 
 
 static int wpas_dpp_announce_presence_start(struct wpa_supplicant *wpa_s)
 {
+	wpas_dpp_set_state(wpa_s, DPP_STATE_ANNOUNCING_PRESENCE);
+
 	struct dpp_announce_presence *announce = wpa_s->dpp_announce;
 	if (announce->scan) {
 		wpas_dpp_announce_presence_scan(wpa_s);
@@ -1909,6 +1922,20 @@ static int wpas_dpp_announce_presence_start(struct wpa_supplicant *wpa_s)
 
 	return wpas_dpp_announce_presence_now(wpa_s, NULL, 0);
 }
+
+
+void wpas_dpp_set_state(struct wpa_supplicant *wpa_s, enum dpp_state dpp_state)
+{
+	if (wpa_s->dpp_state == dpp_state)
+		return;
+
+	enum dpp_state dpp_state_old = wpa_s->dpp_state;
+	wpa_s->dpp_state = dpp_state;
+	wpas_notify_dpp_state_changed(wpa_s);
+	wpa_msg(wpa_s, MSG_DEBUG, "DPP: %s -> %s\n",
+		dpp_state_str(dpp_state_old), dpp_state_str(dpp_state));
+}
+
 #endif /* CONFIG_DPP2 */
 
 

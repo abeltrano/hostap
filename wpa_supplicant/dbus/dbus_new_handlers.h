@@ -265,4 +265,10 @@ DBusMessage * wpas_dbus_handler_subscribe_preq(
 DBusMessage * wpas_dbus_handler_unsubscribe_preq(
 	DBusMessage *message, struct wpa_supplicant *wpa_s);
 
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_state);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_netrole);
+
+DBusMessage * wpas_dbus_handler_dpp_announce_presence(DBusMessage *message,
+					  struct wpa_supplicant *wpa_s);
+
 #endif /* CTRL_IFACE_DBUS_HANDLERS_NEW_H */

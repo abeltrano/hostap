@@ -36,6 +36,10 @@
 #include "ap/hostapd.h"
 #include "ap/sta_info.h"
 #endif /* CONFIG_MESH */
+#ifdef CONFIG_DPP
+#include "common/dpp.h"
+#include "../dpp_supplicant.h"
+#endif
 
 static const char * const debug_strings[] = {
 	"excessive", "msgdump", "debug", "info", "warning", "error", NULL
@@ -138,7 +142,7 @@ DBusMessage * wpas_dbus_error_no_memory(DBusMessage *message)
 static const char * const dont_quote[] = {
 	"key_mgmt", "proto", "pairwise", "auth_alg", "group", "eap",
 	"bssid", "scan_freq", "freq_list", "scan_ssid", "bssid_hint",
-	"bssid_blacklist", "bssid_whitelist", "group_mgmt",
+	"bssid_blacklist", "bssid_whitelist", "group_mgmt", "priority",
 #ifdef CONFIG_MESH
 	"mesh_basic_rates",
 #endif /* CONFIG_MESH */
@@ -5495,3 +5499,145 @@ dbus_bool_t wpas_dbus_getter_mesh_group(
 }
 
 #endif /* CONFIG_MESH */
+
+#ifdef CONFIG_DPP
+
+/**
+ * wpas_dbus_getter_dpp_state - Get dpp state
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "State" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_state(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	const char *str_dpp_state;
+	char *dpp_state_ls, *tmp;
+	dbus_bool_t success = FALSE;
+
+	str_dpp_state = dpp_state_str(wpa_s->dpp_state);
+
+	/* make state string lowercase to fit new DBus API convention
+	 */
+	dpp_state_ls = tmp = os_strdup(str_dpp_state);
+	if (!tmp) {
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
+	}
+	while (*tmp) {
+		*tmp = tolower(*tmp);
+		tmp++;
+	}
+
+	success = wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						   &dpp_state_ls, error);
+
+	os_free(dpp_state_ls);
+
+	return success;
+}
+
+/**
+ * wpas_dbus_getter_dpp_netrole - Get dpp netrole
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "State" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_netrole(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	const char *str_dpp_netrole;
+	char *dpp_netrole_ls, *tmp;
+	dbus_bool_t success = FALSE;
+
+	str_dpp_netrole = dpp_netrole_str(wpa_s->dpp_netrole);
+
+	/* make state string lowercase to fit new DBus API convention
+	 */
+	dpp_netrole_ls = tmp = os_strdup(str_dpp_netrole);
+	if (!tmp) {
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
+	}
+	while (*tmp) {
+		*tmp = tolower(*tmp);
+		tmp++;
+	}
+
+	success = wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						   &dpp_netrole_ls, error);
+
+	os_free(dpp_netrole_ls);
+
+	return success;
+}
+
+
+/*
+ * wpas_dbus_handler_dpp_announce_presence - Start DPP presence announcement
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL
+ *
+ * Handler function for "AnnouncePresence" method call of DPP interface.
+ */
+DBusMessage * wpas_dbus_handler_dpp_announce_presence(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s)
+{
+	DBusMessageIter iter_dict;
+	DBusMessage *reply = NULL;
+	DBusMessageIter iter;
+	struct wpa_dbus_dict_entry entry;
+	uint32_t id = 0;
+	int noscan = 0;
+
+	dbus_message_iter_init(message, &iter);
+
+	// If already announcing presence, claim success.
+	if (wpa_s->dpp_announce)
+		goto out;
+
+	if (!wpa_dbus_dict_open_read(&iter, &iter_dict, NULL))
+		goto err;
+
+	while (wpa_dbus_dict_has_dict_entry(&iter_dict)) {
+		if (!wpa_dbus_dict_get_entry(&iter_dict, &entry))
+			goto err;
+
+		if (os_strcmp(entry.key, "id") == 0 &&
+		    entry.type == DBUS_TYPE_UINT32) {
+            id = entry.uint32_value;
+		} else if (os_strcmp(entry.key, "noscan") == 0 &&
+			   entry.type == DBUS_TYPE_BOOLEAN) {
+			noscan = entry.bool_value;
+		} else {
+			wpa_dbus_dict_entry_clear(&entry);
+			goto err;
+		}
+	}
+
+	if (id == 0) {
+		reply = wpas_dbus_error_invalid_args(message, "bootstrap key id not provided");
+		goto out;
+	}
+	if (wpas_dpp_announce_presence2(wpa_s, id, noscan) < 0)
+		goto err;
+
+out:
+	return reply;
+
+err:
+	reply = wpas_dbus_error_invalid_args(message, NULL);
+	goto out;
+}
+#endif /* CONFIG_DPP */

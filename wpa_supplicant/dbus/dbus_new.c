@@ -3558,6 +3558,15 @@ static const struct wpa_dbus_method_desc wpas_dbus_interface_methods[] = {
 		  END_ARGS
 	  }
 	},
+#ifdef CONFIG_DPP
+	{ "AnnouncePresence", WPAS_DBUS_NEW_IFACE_DPP,
+	  (WPADBusMethodHandler) wpas_dbus_handler_dpp_announce_presence,
+	  {
+		  { "args", "a{sv}", ARG_IN },
+		  END_ARGS
+	  }
+	},
+#endif /* CONFIG_DPP */
 	{ NULL, NULL, NULL, { END_ARGS } }
 };
 
@@ -3809,6 +3818,18 @@ static const struct wpa_dbus_property_desc wpas_dbus_interface_properties[] = {
 	  wpas_dbus_setter_mac_address_randomization_mask,
 	  NULL
 	},
+#ifdef CONFIG_DPP
+	{ "State", WPAS_DBUS_NEW_IFACE_DPP, "s",
+      wpas_dbus_getter_dpp_state,
+      NULL,
+      NULL
+	},
+	{ "Netrole", WPAS_DBUS_NEW_IFACE_DPP, "s",
+      wpas_dbus_getter_dpp_netrole,
+      NULL,
+      NULL
+	},
+#endif /* CONFIG_DPP */
 	{ NULL, NULL, NULL, NULL, NULL, NULL }
 };
 
@@ -4958,3 +4979,44 @@ int wpas_dbus_unregister_persistent_group(struct wpa_supplicant *wpa_s,
 }
 
 #endif /* CONFIG_P2P */
+
+#ifdef CONFIG_DPP
+/**
+ * wpas_dbus_dpp_signal_prop_changed - Signals change of property
+ * @wpa_s: %wpa_supplicant network interface data
+ * @property: indicates which property has changed
+ *
+ * Sends PropertyChanged signals with path, interface and arguments
+ * depending on which property has changed.
+ */
+void wpas_dbus_dpp_signal_prop_changed(struct wpa_supplicant *wpa_s,
+				   enum wpas_dbus_dpp_prop property)
+{
+	char *prop;
+	dbus_bool_t flush;
+
+	if (wpa_s->dbus_new_path == NULL)
+		return; /* Skip signal since D-Bus setup is not yet ready */
+
+	flush = FALSE;
+	switch (property) {
+	case WPAS_DBUS_PROP_DPP_STATE:
+        prop = "State";
+        flush = TRUE;
+		break;
+	default:
+		wpa_printf(MSG_ERROR, "dbus: %s: Unknown Property value %d",
+			   __func__, property);
+		return;
+	}
+
+	wpa_dbus_mark_property_changed(wpa_s->global->dbus,
+				       wpa_s->dbus_new_path,
+                       WPAS_DBUS_NEW_IFACE_DPP, prop);
+	if (flush) {
+		wpa_dbus_flush_object_changed_properties(
+			wpa_s->global->dbus->con, wpa_s->dbus_new_path);
+	}
+}
+
+#endif /* CONFIG_DPP */

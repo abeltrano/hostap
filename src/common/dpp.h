@@ -84,6 +84,18 @@ enum dpp_status_error {
 	DPP_STATUS_NO_AP = 10,
 };
 
+enum dpp_state {
+	DPP_STATE_INACTIVE = 0,
+	DPP_STATE_ANNOUNCING_PRESENCE = 1,
+	DPP_STATE_BOOTSTRAP_KEY_ACQUIRING = 2,
+	DPP_STATE_BOOTSTRAPPED = 3,
+	DPP_STATE_AUTHENTICATING = 4,
+	DPP_STATE_AUTHENTICATED = 5,
+	DPP_STATE_PROVISIONING = 6,
+	DPP_STATE_PROVISIONED = 7,
+	DPP_STATE_TERMINATED = 8
+};
+
 #define DPP_CAPAB_ENROLLEE BIT(0)
 #define DPP_CAPAB_CONFIGURATOR BIT(1)
 #define DPP_CAPAB_ROLE_MASK (BIT(0) | BIT(1))
@@ -622,5 +634,7 @@ void dpp_prepare_chirp_channel_list(
 				unsigned int *freq, unsigned int num_freq,
 				struct hostapd_hw_modes *own_modes,
 				u16 num_modes);
+const char * dpp_netrole_str(enum dpp_netrole netrole);
+const char * dpp_state_str(enum dpp_state state);
 #endif /* CONFIG_DPP */
 #endif /* DPP_H */
