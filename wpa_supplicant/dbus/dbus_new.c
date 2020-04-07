@@ -3566,6 +3566,15 @@ static const struct wpa_dbus_method_desc wpas_dbus_interface_methods[] = {
 		  END_ARGS
 	  }
 	},
+	{ "BootstrapGen", WPAS_DBUS_NEW_IFACE_DPP,
+	  (WPADBusMethodHandler) wpas_dbus_handler_dpp_bootstrap_gen,
+	  {
+		  { "type", "s", ARG_IN },
+		  { "args", "a{sv}", ARG_IN },
+		  { "id", "u", ARG_OUT },
+		  END_ARGS
+	  }
+	},
 #endif /* CONFIG_DPP */
 	{ NULL, NULL, NULL, { END_ARGS } }
 };
@@ -3826,6 +3835,11 @@ static const struct wpa_dbus_property_desc wpas_dbus_interface_properties[] = {
 	},
 	{ "Netrole", WPAS_DBUS_NEW_IFACE_DPP, "s",
       wpas_dbus_getter_dpp_netrole,
+      NULL,
+      NULL
+	},
+	{ "BootstrapUris", WPAS_DBUS_NEW_IFACE_DPP, "as",
+      wpas_dbus_getter_dpp_bootstrap_uris,
       NULL,
       NULL
 	},

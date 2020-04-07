@@ -5640,4 +5640,131 @@ err:
 	reply = wpas_dbus_error_invalid_args(message, NULL);
 	goto out;
 }
+
+
+/*
+ * wpas_dbus_handler_dpp_bootstrap_gen - Generate DPP bootstrap info
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL
+ *
+ * Handler function for "BootstrapGen" method call of DPP interface.
+ */
+DBusMessage * wpas_dbus_handler_dpp_bootstrap_gen(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s)
+{
+	DBusMessageIter iter_dict;
+	DBusMessage *reply = NULL;
+	DBusMessageIter iter;
+	struct wpa_dbus_dict_entry entry;
+	char *type = NULL;
+	char *chan = NULL;
+	char *curve = NULL;
+	char *key = NULL;
+	char *mac = NULL;
+	char *info = NULL;
+
+	dbus_message_iter_init(message, &iter);
+
+	if (!wpa_dbus_dict_open_read(&iter, &iter_dict, NULL))
+		goto err;
+
+	while (wpa_dbus_dict_has_dict_entry(&iter_dict)) {
+		if (!wpa_dbus_dict_get_entry(&iter_dict, &entry))
+			goto err;
+
+		if (entry.type == DBUS_TYPE_STRING) {
+			char **value = NULL;
+			if (os_strcmp(entry.key, "type") == 0)
+				value = &type;
+			else if (os_strcmp(entry.key, "chan") == 0)
+				value = &chan;
+			else if (os_strcmp(entry.key, "curve") == 0)
+				value = &curve;
+			else if (os_strcmp(entry.key, "key") == 0)
+				value = &key;
+			else if (os_strcmp(entry.key, "mac") == 0)
+				value = &mac;
+			else if (os_strcmp(entry.key, "info") == 0)
+				value = &info;
+			else {
+				wpa_dbus_dict_entry_clear(&entry);
+				goto err;
+			}
+
+			value == &key ? str_clear_free(*value) : os_free(*value);
+			*value = os_strdup(entry.str_value);
+			wpa_dbus_dict_entry_clear(&entry);
+			if (!*value)
+				goto oom;
+		}
+	}
+
+	int ret = dpp_bootstrap_gen2(wpa_s->dpp, type, chan, mac, info, curve, key);
+	if (ret < 0)
+		goto err;
+
+	uint32_t id = (uint32_t)ret;
+	reply = dbus_message_new_method_return(message);
+	if (!reply)
+		goto oom;
+	if (!dbus_message_append_args(reply, DBUS_TYPE_UINT32, &id, DBUS_TYPE_INVALID)) {
+		dbus_message_unref(reply);
+		goto oom;
+	}
+
+out:
+	os_free(type);
+	os_free(curve);
+	os_free(chan);
+	os_free(mac);
+	os_free(info);
+	str_clear_free(key);
+	return reply;
+err:
+	reply = wpas_dbus_error_invalid_args(message, NULL);
+	goto out;
+oom:
+	reply = wpas_dbus_error_no_memory(message);
+	goto out;
+}
+
+/**
+ * wpas_dbus_getter_dpp_bootstrap_uris - Request
+ * current dpp bootstrap uri list.
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "BootstrapUris" property. Handles requests
+ * by dbus clients to return list of strings with dpp bootstrap uris
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bootstrap_uris(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	struct dpp_global *dpp = wpa_s->dpp;
+	char **bootstrap_uris;
+	size_t num_items = 0;
+	dbus_bool_t success;
+
+	bootstrap_uris = dpp_get_bootstrap_uris_as_string_array(dpp, &num_items);
+	if (!bootstrap_uris) {
+		dbus_set_error_const(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
+	}
+
+	success = wpas_dbus_simple_array_property_getter(iter,
+							 DBUS_TYPE_STRING,
+							 bootstrap_uris,
+							 num_items, error);
+
+	while (num_items)
+		os_free(bootstrap_uris[--num_items]);
+	os_free(bootstrap_uris);
+	return success;
+}
+
 #endif /* CONFIG_DPP */
