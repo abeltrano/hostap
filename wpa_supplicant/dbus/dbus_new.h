@@ -57,6 +57,15 @@ enum wpas_dbus_sta_prop {
 
 enum wpas_dbus_dpp_prop {
 	WPAS_DBUS_PROP_DPP_STATE,
+    WPAS_DBUS_PROP_DPP_BI
+};
+
+enum wpas_dbus_dpp_bi_prop {
+    WPAS_DBUS_PROP_DPP_BI_INFO_ID,
+    WPAS_DBUS_PROP_DPP_BI_INFO_TYPE,
+    WPAS_DBUS_PROP_DPP_BI_INFO_URI,
+    WPAS_DBUS_PROP_DPP_BI_INFO_CHAN,
+    WPAS_DBUS_PROP_DPP_BI_INFO_INFO,
 };
 
 #define WPAS_DBUS_OBJECT_PATH_MAX 150
@@ -68,7 +77,11 @@ enum wpas_dbus_dpp_prop {
 #define WPAS_DBUS_NEW_PATH_INTERFACES	WPAS_DBUS_NEW_PATH "/Interfaces"
 #define WPAS_DBUS_NEW_IFACE_INTERFACE	WPAS_DBUS_NEW_INTERFACE ".Interface"
 #define WPAS_DBUS_NEW_IFACE_WPS WPAS_DBUS_NEW_IFACE_INTERFACE ".WPS"
-#define WPAS_DBUS_NEW_IFACE_DPP WPAS_DBUS_NEW_IFACE_INTERFACE ".DPP"
+#define WPAS_DBUS_NEW_IFACE_DPP	WPAS_DBUS_NEW_IFACE_INTERFACE ".DPP"
+#define WPAS_DBUS_NEW_IFACE_DPP_BI  WPAS_DBUS_NEW_IFACE_DPP ".BootstrapInfo"
+
+#define WPAS_DBUS_NEW_DPP_PART		"DPP"
+#define WPAS_DBUS_NEW_DPP_BI_PART   WPAS_DBUS_NEW_DPP_PART "/BootstrapInfo"
 
 #define WPAS_DBUS_NEW_NETWORKS_PART "Networks"
 #define WPAS_DBUS_NEW_IFACE_NETWORK WPAS_DBUS_NEW_INTERFACE ".Network"
@@ -271,6 +284,10 @@ void wpas_dbus_signal_mesh_peer_disconnected(struct wpa_supplicant *wpa_s,
 					     const u8 *peer_addr, int reason);
 void wpas_dbus_dpp_signal_prop_changed(struct wpa_supplicant *wpa_s,
 				   enum wpas_dbus_dpp_prop property);
+int wpas_dbus_unregister_dpp_bi(struct wpa_supplicant *wpa_s,
+			     unsigned int id);
+int wpas_dbus_register_dpp_bi(struct wpa_supplicant *wpa_s,
+			   unsigned int id);
 #else /* CONFIG_CTRL_IFACE_DBUS_NEW */
 
 static inline int wpas_dbus_register_interface(struct wpa_supplicant *wpa_s)
@@ -626,6 +643,20 @@ static inline
 void wpas_dbus_signal_prop_changed(struct wpa_supplicant *wpa_s,
 				   enum wpas_dbus_dpp_prop property)
 {
+}
+
+static inline
+int wpas_dbus_unregister_dpp_bi(struct wpa_supplicant *wpa_s,
+			     unsigned int id)
+{
+    return 0;
+}
+
+static inline
+int wpas_dbus_register_dpp_bi(struct wpa_supplicant *wpa_s,
+			   unsigned int id)
+{
+    return 0;
 }
 
 #endif /* CONFIG_CTRL_IFACE_DBUS_NEW */

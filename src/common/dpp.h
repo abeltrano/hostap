@@ -640,6 +640,6 @@ void dpp_prepare_chirp_channel_list(
 const char * dpp_netrole_str(enum dpp_netrole netrole);
 const char * dpp_state_str(enum dpp_state state);
 int dpp_bootstrap_type_parse(enum dpp_bootstrap_type *type, const char *str);
-char ** dpp_get_bootstrap_uris_as_string_array(struct dpp_global *dpp, size_t *num);
+unsigned int * dpp_bootstrap_get_ids(struct dpp_global *dpp, size_t *num);
 #endif /* CONFIG_DPP */
 #endif /* DPP_H */

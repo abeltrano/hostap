@@ -9279,10 +9279,10 @@ fail:
 	return ret;
 }
 
-char ** dpp_get_bootstrap_uris_as_string_array(struct dpp_global *dpp, size_t *num)
+
+unsigned int * dpp_bootstrap_get_ids(struct dpp_global *dpp, size_t *num)
 {
-	int i = 0, j;
-	char **array;
+	unsigned int *array, i = 0;
 	size_t array_len = 0;
 	struct dpp_bootstrap_info *bi;
 
@@ -9292,24 +9292,14 @@ char ** dpp_get_bootstrap_uris_as_string_array(struct dpp_global *dpp, size_t *n
 	dl_list_for_each(bi, &dpp->bootstrap, struct dpp_bootstrap_info, list)
 		array_len++;
 
-	array = os_calloc(array_len + 1, sizeof(char *));
+	array = os_calloc(array_len, sizeof(unsigned int));
 	if (array == NULL)
 		return NULL;
 
-	dl_list_for_each(bi, &dpp->bootstrap, struct dpp_bootstrap_info, list) {
-		array[i++] = os_strdup(bi->uri);
-		if (array[i - 1] == NULL) {
-			for (j = 0; j < i; j++)
-				os_free(array[j]);
-			os_free(array);
-			return NULL;
-		}
-	}
+	dl_list_for_each(bi, &dpp->bootstrap, struct dpp_bootstrap_info, list)
+		array[i++] = bi->id;
 
-	array[i] = NULL;
-
-	if (num)
-		*num = array_len;
+	*num = array_len;
 
 	return array;
 }
