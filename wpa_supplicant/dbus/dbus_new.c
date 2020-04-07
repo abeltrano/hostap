@@ -3571,7 +3571,7 @@ static const struct wpa_dbus_method_desc wpas_dbus_interface_methods[] = {
 	  {
 		  { "type", "s", ARG_IN },
 		  { "args", "a{sv}", ARG_IN },
-		  { "id", "u", ARG_OUT },
+		  { "path", "o", ARG_OUT },
 		  END_ARGS
 	  }
 	},

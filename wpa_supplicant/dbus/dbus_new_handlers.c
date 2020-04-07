@@ -5653,6 +5653,7 @@ err:
 DBusMessage * wpas_dbus_handler_dpp_bootstrap_gen(DBusMessage *message,
 					   struct wpa_supplicant *wpa_s)
 {
+	int ret;
 	DBusMessageIter iter_dict;
 	DBusMessage *reply = NULL;
 	DBusMessageIter iter;
@@ -5663,6 +5664,7 @@ DBusMessage * wpas_dbus_handler_dpp_bootstrap_gen(DBusMessage *message,
 	char *key = NULL;
 	char *mac = NULL;
 	char *info = NULL;
+	char path_buf[WPAS_DBUS_OBJECT_PATH_MAX], *path = path_buf;
 
 	dbus_message_iter_init(message, &iter);
 
@@ -5700,15 +5702,18 @@ DBusMessage * wpas_dbus_handler_dpp_bootstrap_gen(DBusMessage *message,
 		}
 	}
 
-	int ret = wpas_dpp_bootstrap_gen2(wpa_s, type, chan, mac, info, curve, key);
+	ret = wpas_dpp_bootstrap_gen2(wpa_s, type, chan, mac, info, curve, key);
 	if (ret < 0)
 		goto err;
 
-	uint32_t id = (uint32_t)ret;
+	/* Construct the object path for this bootstrap info. */
+	os_snprintf(path, WPAS_DBUS_OBJECT_PATH_MAX,
+		    "%s/" WPAS_DBUS_NEW_DPP_BI_PART "/%d",
+		    wpa_s->dbus_new_path, ret);
 	reply = dbus_message_new_method_return(message);
 	if (!reply)
 		goto oom;
-	if (!dbus_message_append_args(reply, DBUS_TYPE_UINT32, &id, DBUS_TYPE_INVALID)) {
+	if (!dbus_message_append_args(reply, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID)) {
 		dbus_message_unref(reply);
 		goto oom;
 	}
