@@ -9241,7 +9241,7 @@ int dpp_bootstrap_gen2(struct dpp_global *dpp, const char *type, const char *cha
 	int ret = -1;
 	struct dpp_bootstrap_info *bi;
 
-	if (!dpp)
+	if (!dpp || !type)
 		return -1;
 
 	bi = os_zalloc(sizeof(*bi));
@@ -9250,9 +9250,13 @@ int dpp_bootstrap_gen2(struct dpp_global *dpp, const char *type, const char *cha
 	if (dpp_bootstrap_type_parse(&bi->type, type) < 0)
 		goto fail;
 
-	bi->chan = os_strdup(chan);
-	if (!bi->chan)
-		goto fail;
+	if (chan) {
+		bi->chan = os_strdup(chan);
+		if (!chan)
+			goto fail;
+	} else {
+		chan = NULL;
+	}
 
 	if (key) {
 		privkey_len = os_strlen(key) / 2;
