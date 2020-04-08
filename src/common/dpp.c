@@ -9252,10 +9252,8 @@ int dpp_bootstrap_gen2(struct dpp_global *dpp, const char *type, const char *cha
 
 	if (chan) {
 		bi->chan = os_strdup(chan);
-		if (!chan)
+		if (!bi->chan)
 			goto fail;
-	} else {
-		chan = NULL;
 	}
 
 	if (key) {
