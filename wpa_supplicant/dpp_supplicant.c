@@ -2948,6 +2948,55 @@ void wpas_dpp_deinit(struct wpa_supplicant *wpa_s)
 }
 
 
+int wpas_dpp_bootstrap_gen(struct wpa_supplicant *wpa_s, const char *cmd)
+{
+	int ret = dpp_bootstrap_gen(wpa_s->dpp, cmd);
+	if (ret >= 0)
+		wpas_notify_dpp_bi_added(wpa_s, (unsigned)ret);
+	return ret;
+}
+
+
+int wpas_dpp_bootstrap_gen2(struct wpa_supplicant *wpa_s, const char *type,
+	const char *chan, const char *mac, const char *info, const char *curve,
+	const char *key)
+{
+	int ret = dpp_bootstrap_gen2(wpa_s->dpp, type, chan, mac, info, curve, key);
+	if (ret >= 0)
+		wpas_notify_dpp_bi_added(wpa_s, (unsigned)ret);
+	return ret;
+}
+
+
+int wpas_dpp_bootstrap_remove(struct wpa_supplicant *wpa_s, const char *id)
+{
+	int ret, i;
+	size_t num;
+	unsigned int id_val, *ids = NULL;
+
+	/* save bootstrap info ids in case a wildcard is used. */
+	if (os_strcmp(id, "*") == 0) {
+		ids = dpp_bootstrap_get_ids(wpa_s->dpp, &num);
+		if (!ids)
+			return -1;
+	} else {
+		id_val = atoi(id);
+		ids = &id_val;
+		num = 1;
+	}
+
+	ret = dpp_bootstrap_remove(wpa_s->dpp, id);
+	if (ret == 0) {
+		for (i = 0; i < num; i++)
+			wpas_notify_dpp_bi_removed(wpa_s, ids[i]);
+	}
+
+	if (ids != &id_val)
+		os_free(ids);
+	return ret;
+}
+
+
 #ifdef CONFIG_DPP2
 int wpas_dpp_controller_start(struct wpa_supplicant *wpa_s, const char *cmd)
 {

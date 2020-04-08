@@ -940,4 +940,26 @@ void wpas_notify_dpp_state_changed(struct wpa_supplicant *wpa_s)
 	wpas_dbus_dpp_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_DPP_STATE);
 }
 
+
+void wpas_notify_dpp_bi_added(struct wpa_supplicant *wpa_s,
+			   unsigned int id)
+{
+	if (!wpa_s->dpp)
+		return;
+
+	wpas_dbus_register_dpp_bi(wpa_s, id);
+	wpa_msg_ctrl(wpa_s, MSG_INFO, DPP_EVENT_BI_ADDED "%u ", id);
+}
+
+
+void wpas_notify_dpp_bi_removed(struct wpa_supplicant *wpa_s,
+			     unsigned int id)
+{
+	if (!wpa_s->dpp)
+		return;
+
+	wpas_dbus_unregister_dpp_bi(wpa_s, id);
+	wpa_msg_ctrl(wpa_s, MSG_INFO, DPP_EVENT_BI_REMOVED "%u ", id);
+}
+
 #endif /* CONFIG_DPP */

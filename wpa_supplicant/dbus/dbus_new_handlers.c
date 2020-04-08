@@ -5640,4 +5640,400 @@ err:
 	reply = wpas_dbus_error_invalid_args(message, NULL);
 	goto out;
 }
+
+
+/*
+ * wpas_dbus_handler_dpp_bootstrap_gen - Generate DPP bootstrap info
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL
+ *
+ * Handler function for "BootstrapGen" method call of DPP interface.
+ */
+DBusMessage * wpas_dbus_handler_dpp_bootstrap_gen(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s)
+{
+	int ret;
+	DBusMessageIter iter_dict;
+	DBusMessage *reply = NULL;
+	DBusMessageIter iter;
+	struct wpa_dbus_dict_entry entry;
+	char *type = NULL;
+	char *chan = NULL;
+	char *curve = NULL;
+	char *key = NULL;
+	char *mac = NULL;
+	char *info = NULL;
+	char path_buf[WPAS_DBUS_OBJECT_PATH_MAX], *path = path_buf;
+
+	dbus_message_iter_init(message, &iter);
+
+	if (!wpa_dbus_dict_open_read(&iter, &iter_dict, NULL))
+		goto err;
+
+	while (wpa_dbus_dict_has_dict_entry(&iter_dict)) {
+		if (!wpa_dbus_dict_get_entry(&iter_dict, &entry))
+			goto err;
+
+		if (entry.type == DBUS_TYPE_STRING) {
+			char **value = NULL;
+			if (os_strcmp(entry.key, "type") == 0)
+				value = &type;
+			else if (os_strcmp(entry.key, "chan") == 0)
+				value = &chan;
+			else if (os_strcmp(entry.key, "curve") == 0)
+				value = &curve;
+			else if (os_strcmp(entry.key, "key") == 0)
+				value = &key;
+			else if (os_strcmp(entry.key, "mac") == 0)
+				value = &mac;
+			else if (os_strcmp(entry.key, "info") == 0)
+				value = &info;
+			else {
+				wpa_dbus_dict_entry_clear(&entry);
+				goto err;
+			}
+
+			value == &key ? str_clear_free(*value) : os_free(*value);
+			*value = os_strdup(entry.str_value);
+			wpa_dbus_dict_entry_clear(&entry);
+			if (!*value)
+				goto oom;
+		}
+	}
+
+	ret = wpas_dpp_bootstrap_gen2(wpa_s, type, chan, mac, info, curve, key);
+	if (ret < 0)
+		goto err;
+
+	/* Construct the object path for this bootstrap info. */
+	os_snprintf(path, WPAS_DBUS_OBJECT_PATH_MAX,
+		    "%s/" WPAS_DBUS_NEW_DPP_BI_PART "/%d",
+		    wpa_s->dbus_new_path, ret);
+	reply = dbus_message_new_method_return(message);
+	if (!reply)
+		goto oom;
+	if (!dbus_message_append_args(reply, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID)) {
+		dbus_message_unref(reply);
+		goto oom;
+	}
+
+out:
+	os_free(type);
+	os_free(curve);
+	os_free(chan);
+	os_free(mac);
+	os_free(info);
+	str_clear_free(key);
+	return reply;
+err:
+	reply = wpas_dbus_error_invalid_args(message, NULL);
+	goto out;
+oom:
+	reply = wpas_dbus_error_no_memory(message);
+	goto out;
+}
+
+
+/**
+ * wpas_dbus_getter_dpp_bootstrapinfo - Get array
+ * DPP bootstrap info objects
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "BootstrapInfo" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	struct dpp_global *dpp = wpa_s->dpp;
+	char **paths;
+	unsigned int *ids;
+	size_t num = 0;
+	unsigned int i;
+	dbus_bool_t success = FALSE;
+
+	if (!wpa_s->dbus_new_path) {
+		dbus_set_error(error, DBUS_ERROR_FAILED,
+			       "%s: no D-Bus interface", __func__);
+		return FALSE;
+	}
+
+	if (!dpp) {
+		dbus_set_error(error, WPAS_DBUS_ERROR_IFACE_DISABLED,
+					"%s: DPP not supported", __func__);
+		return FALSE;
+	}
+
+	ids = dpp_bootstrap_get_ids(dpp, &num);
+	if (!ids) {
+		dbus_set_error(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		return FALSE;
+	}
+
+	paths = os_calloc(num, sizeof(char *));
+	if (!paths) {
+		dbus_set_error(error, DBUS_ERROR_NO_MEMORY, "no memory");
+		goto out;
+	}
+
+	/* Loop through bootstrap info ids and append object path of each */
+	for (i = 0; i < num; i++) {
+		paths[i] = os_zalloc(WPAS_DBUS_OBJECT_PATH_MAX);
+		if (paths[i] == NULL) {
+			dbus_set_error(error, DBUS_ERROR_NO_MEMORY, "no memory");
+			goto out;
+		}
+
+		/* Construct the object path for this bootstrap info. */
+		os_snprintf(paths[i], WPAS_DBUS_OBJECT_PATH_MAX,
+			    "%s/" WPAS_DBUS_NEW_DPP_BI_PART "/%u",
+			    wpa_s->dbus_new_path, ids[i]);
+	}
+
+	success = wpas_dbus_simple_array_property_getter(iter,
+							 DBUS_TYPE_OBJECT_PATH,
+							 paths, num, error);
+
+out:
+	os_free(ids);
+	os_free(paths);
+	return success;
+}
+
+/**
+ * wpas_dbus_getter_dpp_bi_id - Return the id of a DPP
+ * bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "Id" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_id(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	dbus_uint32_t id;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+	id = args->id;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_UINT32,
+						   &id, error);
+}
+
+/**
+ * wpas_dbus_getter_dpp_bi_uri - Return the uri of a DPP
+ * bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "Uri" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_uri(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct dpp_bootstrap_info *bi;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+
+	bi = dpp_bootstrap_get_id(dpp, args->id);
+	if (!bi)
+		return FALSE;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						   &bi->uri, error);
+}
+
+/**
+ * wpas_dbus_getter_dpp_bi_type - Return the type of a DPP
+ * bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "Type" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_type(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	const char *type;
+	struct dpp_bootstrap_info *bi;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+
+	bi = dpp_bootstrap_get_id(dpp, args->id);
+	if (!bi)
+		return FALSE;
+
+	type = dpp_bootstrap_type_txt(bi->type);
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						   &type, error);
+}
+
+/**
+ * wpas_dbus_getter_dpp_bi_chan - Return the channel
+ * list of a DPP bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "Channel" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_chan(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct dpp_bootstrap_info *bi;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+
+	bi = dpp_bootstrap_get_id(dpp, args->id);
+	if (!bi)
+		return FALSE;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						   &bi->chan, error);
+}
+
+
+/**
+ * wpas_dbus_getter_dpp_bi_info - Return the extra
+ * info a DPP bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "Info" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_info(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	const char *info;
+	struct dpp_bootstrap_info *bi;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+
+	bi = dpp_bootstrap_get_id(dpp, args->id);
+	if (!bi)
+		return FALSE;
+
+	info = bi->info != NULL ? bi->info : "";
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						   &info, error);
+}
+
+
+/**
+ * wpas_dbus_getter_dpp_bi_freqs - Return the
+ * global frequencies for a DPP bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "Frequencies" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_freqs(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct dpp_bootstrap_info *bi;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+
+	bi = dpp_bootstrap_get_id(dpp, args->id);
+	if (!bi)
+		return FALSE;
+
+	return wpas_dbus_simple_array_property_getter(iter, DBUS_TYPE_UINT32,
+						      bi->freq, bi->num_freq,
+						      error);
+}
+
+
+/**
+ * wpas_dbus_getter_dpp_bi_curve - Return the curve
+ * of a DPP bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on fe
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "Curve" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_curve(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct dpp_bootstrap_info *bi;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+
+	bi = dpp_bootstrap_get_id(dpp, args->id);
+	if (!bi)
+		return FALSE;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+						   &bi->curve->name, error);
+}
+
+
+/**
+ * wpas_dbus_getter_dpp_bi_pubkey_hash - Return the public
+ * key hash for a DPP bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "PublicKeyHash" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_pubkey_hash(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct dpp_bootstrap_info *bi;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+
+	bi = dpp_bootstrap_get_id(dpp, args->id);
+	if (!bi)
+		return FALSE;
+
+	return wpas_dbus_simple_array_property_getter(iter, DBUS_TYPE_BYTE,
+						      bi->pubkey_hash, SHA256_MAC_LEN,
+						      error);
+}
+
 #endif /* CONFIG_DPP */

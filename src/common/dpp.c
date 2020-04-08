@@ -4904,6 +4904,23 @@ const char * dpp_state_str(enum dpp_state state)
 }
 
 
+int dpp_bootstrap_type_parse(enum dpp_bootstrap_type *type, const char *str)
+{
+	if (os_strcmp(str, "qrcode") == 0)
+		*type = DPP_BOOTSTRAP_QR_CODE;
+	else if (os_strcmp(str, "pkex") == 0)
+		*type = DPP_BOOTSTRAP_PKEX;
+	else if (os_strcmp(str, "nfc-uri"))
+		*type = DPP_BOOTSTRAP_NFC_URI;
+	else if (os_strcmp(str, "chirp") == 0)
+		*type = DPP_BOOTSTRAP_CHIRP;
+	else
+		return -1;
+
+	return 0;
+}
+
+
 static struct wpabuf *
 dpp_build_conf_obj_dpp(struct dpp_authentication *auth,
 		       struct dpp_configuration *conf)
@@ -9214,6 +9231,77 @@ fail:
 	bin_clear_free(privkey, privkey_len);
 	dpp_bootstrap_info_free(bi);
 	return ret;
+}
+
+
+int dpp_bootstrap_gen2(struct dpp_global *dpp, const char *type, const char *chan, const char *mac, const char *info, const char *curve, const char *key)
+{
+	u8 *privkey = NULL;
+	size_t privkey_len = 0;
+	int ret = -1;
+	struct dpp_bootstrap_info *bi;
+
+	if (!dpp)
+		return -1;
+
+	bi = os_zalloc(sizeof(*bi));
+	if (!bi)
+		goto fail;
+	if (dpp_bootstrap_type_parse(&bi->type, type) < 0)
+		goto fail;
+
+	bi->chan = os_strdup(chan);
+	if (!bi->chan)
+		goto fail;
+
+	if (key) {
+		privkey_len = os_strlen(key) / 2;
+		privkey = os_malloc(privkey_len);
+		if (!privkey ||
+		    hexstr2bin(key, privkey, privkey_len) < 0)
+			goto fail;
+	}
+
+	if (dpp_keygen(bi, curve, privkey, privkey_len) < 0 ||
+	    dpp_parse_uri_chan_list(bi, bi->chan) < 0 ||
+	    dpp_parse_uri_mac(bi, mac) < 0 ||
+	    dpp_parse_uri_info(bi, info) < 0 ||
+	    dpp_gen_uri(bi) < 0)
+		goto fail;
+
+	bi->id = dpp_next_id(dpp);
+	dl_list_add(&dpp->bootstrap, &bi->list);
+	ret = bi->id;
+	bi = NULL;
+fail:
+	bin_clear_free(privkey, privkey_len);
+	dpp_bootstrap_info_free(bi);
+	return ret;
+}
+
+
+unsigned int * dpp_bootstrap_get_ids(struct dpp_global *dpp, size_t *num)
+{
+	unsigned int *array, i = 0;
+	size_t array_len = 0;
+	struct dpp_bootstrap_info *bi;
+
+	if (!dpp)
+		return NULL;
+
+	dl_list_for_each(bi, &dpp->bootstrap, struct dpp_bootstrap_info, list)
+		array_len++;
+
+	array = os_calloc(array_len, sizeof(unsigned int));
+	if (array == NULL)
+		return NULL;
+
+	dl_list_for_each(bi, &dpp->bootstrap, struct dpp_bootstrap_info, list)
+		array[i++] = bi->id;
+
+	*num = array_len;
+
+	return array;
 }
 
 

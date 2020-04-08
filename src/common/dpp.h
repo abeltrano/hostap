@@ -579,6 +579,9 @@ struct dpp_bootstrap_info * dpp_add_qr_code(struct dpp_global *dpp,
 struct dpp_bootstrap_info * dpp_add_nfc_uri(struct dpp_global *dpp,
 					    const char *uri);
 int dpp_bootstrap_gen(struct dpp_global *dpp, const char *cmd);
+int dpp_bootstrap_gen2(struct dpp_global *dpp, const char *type,
+	const char *chan, const char *mac, const char *info, const char *curve,
+	const char *key);
 struct dpp_bootstrap_info *
 dpp_bootstrap_get_id(struct dpp_global *dpp, unsigned int id);
 int dpp_bootstrap_remove(struct dpp_global *dpp, const char *id);
@@ -636,5 +639,7 @@ void dpp_prepare_chirp_channel_list(
 				u16 num_modes);
 const char * dpp_netrole_str(enum dpp_netrole netrole);
 const char * dpp_state_str(enum dpp_state state);
+int dpp_bootstrap_type_parse(enum dpp_bootstrap_type *type, const char *str);
+unsigned int * dpp_bootstrap_get_ids(struct dpp_global *dpp, size_t *num);
 #endif /* CONFIG_DPP */
 #endif /* DPP_H */

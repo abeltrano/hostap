@@ -27,6 +27,11 @@ struct sta_handler_args {
 	const u8 *sta;
 };
 
+struct dpp_bi_handler_args {
+	struct wpa_supplicant *wpa_s;
+	unsigned int id;
+};
+
 dbus_bool_t wpas_dbus_simple_property_getter(DBusMessageIter *iter,
 					     const int type,
 					     const void *val,
@@ -267,8 +272,19 @@ DBusMessage * wpas_dbus_handler_unsubscribe_preq(
 
 DECLARE_ACCESSOR(wpas_dbus_getter_dpp_state);
 DECLARE_ACCESSOR(wpas_dbus_getter_dpp_netrole);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_id);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_uri);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_type);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_chan);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_info);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_freqs);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_curve);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_pubkey_hash);
 
 DBusMessage * wpas_dbus_handler_dpp_announce_presence(DBusMessage *message,
+					  struct wpa_supplicant *wpa_s);
+DBusMessage * wpas_dbus_handler_dpp_bootstrap_gen(DBusMessage *message,
 					  struct wpa_supplicant *wpa_s);
 
 #endif /* CTRL_IFACE_DBUS_HANDLERS_NEW_H */

@@ -3566,6 +3566,15 @@ static const struct wpa_dbus_method_desc wpas_dbus_interface_methods[] = {
 		  END_ARGS
 	  }
 	},
+	{ "BootstrapGen", WPAS_DBUS_NEW_IFACE_DPP,
+	  (WPADBusMethodHandler) wpas_dbus_handler_dpp_bootstrap_gen,
+	  {
+		  { "type", "s", ARG_IN },
+		  { "args", "a{sv}", ARG_IN },
+		  { "path", "o", ARG_OUT },
+		  END_ARGS
+	  }
+	},
 #endif /* CONFIG_DPP */
 	{ NULL, NULL, NULL, { END_ARGS } }
 };
@@ -3826,6 +3835,11 @@ static const struct wpa_dbus_property_desc wpas_dbus_interface_properties[] = {
 	},
 	{ "Netrole", WPAS_DBUS_NEW_IFACE_DPP, "s",
       wpas_dbus_getter_dpp_netrole,
+      NULL,
+      NULL
+	},
+	{ "BootstrapInfo", WPAS_DBUS_NEW_IFACE_DPP, "as",
+      wpas_dbus_getter_dpp_bi,
       NULL,
       NULL
 	},
@@ -5004,6 +5018,10 @@ void wpas_dbus_dpp_signal_prop_changed(struct wpa_supplicant *wpa_s,
         prop = "State";
         flush = TRUE;
 		break;
+	case WPAS_DBUS_PROP_DPP_BI:
+		prop = "BootstrapInfo";
+		flush = TRUE;
+		break;
 	default:
 		wpa_printf(MSG_ERROR, "dbus: %s: Unknown Property value %d",
 			   __func__, property);
@@ -5017,6 +5035,162 @@ void wpas_dbus_dpp_signal_prop_changed(struct wpa_supplicant *wpa_s,
 		wpa_dbus_flush_object_changed_properties(
 			wpa_s->global->dbus->con, wpa_s->dbus_new_path);
 	}
+}
+
+static const struct wpa_dbus_property_desc wpas_dbus_dpp_bi_properties[] = {
+	{ "Id", WPAS_DBUS_NEW_IFACE_DPP_BI, "u",
+	  wpas_dbus_getter_dpp_bi_id,
+	  NULL,
+	  NULL
+	},
+	{ "Type", WPAS_DBUS_NEW_IFACE_DPP_BI, "s",
+	  wpas_dbus_getter_dpp_bi_type,
+	  NULL,
+	  NULL
+	},
+	{ "Uri", WPAS_DBUS_NEW_IFACE_DPP_BI, "s",
+	  wpas_dbus_getter_dpp_bi_uri,
+	  NULL,
+	  NULL
+	},
+	{ "Channel", WPAS_DBUS_NEW_IFACE_DPP_BI, "s",
+	  wpas_dbus_getter_dpp_bi_chan,
+	  NULL,
+	  NULL
+	},
+	{ "Info", WPAS_DBUS_NEW_IFACE_DPP_BI, "s",
+	  wpas_dbus_getter_dpp_bi_info,
+	  NULL,
+	  NULL
+	},
+	{ "Frequencies", WPAS_DBUS_NEW_IFACE_DPP_BI, "au",
+	  wpas_dbus_getter_dpp_bi_freqs,
+	  NULL,
+	  NULL
+	},
+	{ "Curve", WPAS_DBUS_NEW_IFACE_DPP_BI, "s",
+	  wpas_dbus_getter_dpp_bi_curve,
+	  NULL,
+	  NULL
+	},
+	{ "PublicKeyHash", WPAS_DBUS_NEW_IFACE_DPP_BI, "ay",
+	  wpas_dbus_getter_dpp_bi_pubkey_hash,
+	  NULL,
+	  NULL
+	},
+	{ NULL, NULL, NULL, NULL, NULL, NULL }
+};
+
+
+static const struct wpa_dbus_signal_desc wpas_dbus_dpp_bi_signals[] = {
+	{ NULL, NULL, { END_ARGS } }
+};
+
+/**
+ * wpas_dbus_unregister_dpp_bi - Unregister a
+ * DPP bootstrap info object from dbus
+ * @wpa_s: wpa_supplicant interface structure
+ * @id: unique DPP bootstrap info identifier
+ * Returns: 0 on success, -1 on failure
+ *
+ * Unregisters DPP bootstrap info object from dbus
+ */
+int wpas_dbus_unregister_dpp_bi(struct wpa_supplicant *wpa_s,
+			     unsigned int id)
+{
+	struct wpas_dbus_priv *ctrl_iface;
+	char dpp_bi_obj_path[WPAS_DBUS_OBJECT_PATH_MAX];
+
+	/* Do nothing if the control interface is not turned on */
+	if (wpa_s == NULL || wpa_s->global == NULL || !wpa_s->dbus_new_path)
+		return 0;
+	ctrl_iface = wpa_s->global->dbus;
+	if (ctrl_iface == NULL)
+		return 0;
+
+	os_snprintf(dpp_bi_obj_path, WPAS_DBUS_OBJECT_PATH_MAX,
+		    "%s/" WPAS_DBUS_NEW_DPP_BI_PART "/%u",
+		    wpa_s->dbus_new_path, id);
+
+	wpa_printf(MSG_DEBUG, "dbus: Unregister DPP bootstrap info object '%s'",
+		   dpp_bi_obj_path);
+	if (wpa_dbus_unregister_object_per_iface(ctrl_iface, dpp_bi_obj_path)) {
+		wpa_printf(MSG_ERROR, "dbus: Cannot unregister bootstrap info object %s",
+			   dpp_bi_obj_path);
+		return -1;
+	}
+
+	wpas_dbus_dpp_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_DPP_BI);
+
+	return 0;
+}
+
+
+/**
+ * wpas_dbus_register_dpp_bi - Register
+ * a DPP bootstrap info object with dbus
+ * @wpa_s: wpa_supplicant interface structure
+ * @id: unique DPP bootstrap info identifier
+ * Returns: 0 on success, -1 on failure
+ *
+ * Registers DPP boostrap info object with dbus
+ */
+int wpas_dbus_register_dpp_bi(struct wpa_supplicant *wpa_s,
+			   unsigned int id)
+{
+	struct wpas_dbus_priv *ctrl_iface;
+	struct wpa_dbus_object_desc *obj_desc;
+	char dpp_bi_obj_path[WPAS_DBUS_OBJECT_PATH_MAX];
+	struct dpp_bi_handler_args *arg;
+
+	/* Do nothing if the control interface is not turned on */
+	if (wpa_s == NULL || wpa_s->global == NULL || !wpa_s->dbus_new_path)
+		return 0;
+	ctrl_iface = wpa_s->global->dbus;
+	if (ctrl_iface == NULL)
+		return 0;
+
+	os_snprintf(dpp_bi_obj_path, WPAS_DBUS_OBJECT_PATH_MAX,
+		    "%s/" WPAS_DBUS_NEW_DPP_BI_PART "/%u",
+		    wpa_s->dbus_new_path, id);
+
+	obj_desc = os_zalloc(sizeof(struct wpa_dbus_object_desc));
+	if (!obj_desc) {
+		wpa_printf(MSG_ERROR,
+			   "Not enough memory to create object description");
+		goto err;
+	}
+
+	arg = os_zalloc(sizeof(struct dpp_bi_handler_args));
+	if (!arg) {
+		wpa_printf(MSG_ERROR,
+			   "Not enough memory to create arguments for handler");
+		goto err;
+	}
+	arg->wpa_s = wpa_s;
+	arg->id = id;
+
+	wpas_dbus_register(obj_desc, arg, wpa_dbus_free, NULL,
+			   wpas_dbus_dpp_bi_properties,
+			   wpas_dbus_dpp_bi_signals);
+
+	wpa_printf(MSG_DEBUG, "dbus: Register DPP bootstrap info object '%s'",
+		   dpp_bi_obj_path);
+	if (wpa_dbus_register_object_per_iface(ctrl_iface, dpp_bi_obj_path,
+					       wpa_s->ifname, obj_desc)) {
+		wpa_printf(MSG_ERROR,
+			   "Cannot register dpp bootstrap info dbus object %s.",
+			   dpp_bi_obj_path);
+		goto err;
+	}
+
+	wpas_dbus_dpp_signal_prop_changed(wpa_s, WPAS_DBUS_PROP_DPP_BI);
+
+	return 0;
+
+err:
+	free_dbus_object_desc(obj_desc);
+	return -1;
 }
 
 #endif /* CONFIG_DPP */

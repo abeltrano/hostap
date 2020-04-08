@@ -10844,7 +10844,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 	} else if (os_strncmp(buf, "DPP_BOOTSTRAP_GEN ", 18) == 0) {
 		int res;
 
-		res = dpp_bootstrap_gen(wpa_s->dpp, buf + 18);
+		res = wpas_dpp_bootstrap_gen(wpa_s, buf + 18);
 		if (res < 0) {
 			reply_len = -1;
 		} else {
@@ -10853,7 +10853,7 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 				reply_len = -1;
 		}
 	} else if (os_strncmp(buf, "DPP_BOOTSTRAP_REMOVE ", 21) == 0) {
-		if (dpp_bootstrap_remove(wpa_s->dpp, buf + 21) < 0)
+		if (wpas_dpp_bootstrap_remove(wpa_s, buf + 21) < 0)
 			reply_len = -1;
 	} else if (os_strncmp(buf, "DPP_BOOTSTRAP_GET_URI ", 22) == 0) {
 		const char *uri;
