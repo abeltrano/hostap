@@ -5751,7 +5751,7 @@ dbus_bool_t wpas_dbus_getter_dpp_bi(
 {
 	struct wpa_supplicant *wpa_s = user_data;
 	struct dpp_global *dpp = wpa_s->dpp;
-	char **paths;
+	char **paths = NULL;
 	unsigned int *ids;
 	size_t num = 0;
 	unsigned int i;
@@ -5770,29 +5770,31 @@ dbus_bool_t wpas_dbus_getter_dpp_bi(
 	}
 
 	ids = dpp_bootstrap_get_ids(dpp, &num);
-	if (!ids) {
+	if (!ids && num > 0) {
 		dbus_set_error(error, DBUS_ERROR_NO_MEMORY, "no memory");
 		return FALSE;
 	}
 
-	paths = os_calloc(num, sizeof(char *));
-	if (!paths) {
-		dbus_set_error(error, DBUS_ERROR_NO_MEMORY, "no memory");
-		goto out;
-	}
-
-	/* Loop through bootstrap info ids and append object path of each */
-	for (i = 0; i < num; i++) {
-		paths[i] = os_zalloc(WPAS_DBUS_OBJECT_PATH_MAX);
-		if (paths[i] == NULL) {
+	if (num > 0) {
+		paths = os_calloc(num, sizeof(char *));
+		if (!paths) {
 			dbus_set_error(error, DBUS_ERROR_NO_MEMORY, "no memory");
 			goto out;
 		}
 
-		/* Construct the object path for this bootstrap info. */
-		os_snprintf(paths[i], WPAS_DBUS_OBJECT_PATH_MAX,
-			    "%s/" WPAS_DBUS_NEW_DPP_BI_PART "/%u",
-			    wpa_s->dbus_new_path, ids[i]);
+		/* Loop through bootstrap info ids and append object path of each */
+		for (i = 0; i < num; i++) {
+			paths[i] = os_zalloc(WPAS_DBUS_OBJECT_PATH_MAX);
+			if (paths[i] == NULL) {
+				dbus_set_error(error, DBUS_ERROR_NO_MEMORY, "no memory");
+				goto out;
+			}
+
+			/* Construct the object path for this bootstrap info. */
+			os_snprintf(paths[i], WPAS_DBUS_OBJECT_PATH_MAX,
+					"%s/" WPAS_DBUS_NEW_DPP_BI_PART "/%u",
+					wpa_s->dbus_new_path, ids[i]);
+		}
 	}
 
 	success = wpas_dbus_simple_array_property_getter(iter,
@@ -5912,8 +5914,11 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_chan(
 	if (!bi)
 		return FALSE;
 
+	const char *chan = bi->chan;
+	if (!chan)
+		chan = "";
 	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
-						   &bi->chan, error);
+						   &chan, error);
 }
 
 

@@ -9290,7 +9290,7 @@ unsigned int * dpp_bootstrap_get_ids(struct dpp_global *dpp, size_t *num)
 	size_t array_len = 0;
 	struct dpp_bootstrap_info *bi;
 
-	if (!dpp)
+	if (!dpp || dl_list_empty(&dpp->bootstrap))
 		return NULL;
 
 	dl_list_for_each(bi, &dpp->bootstrap, struct dpp_bootstrap_info, list)
