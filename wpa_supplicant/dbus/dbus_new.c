@@ -3569,7 +3569,6 @@ static const struct wpa_dbus_method_desc wpas_dbus_interface_methods[] = {
 	{ "BootstrapGen", WPAS_DBUS_NEW_IFACE_DPP,
 	  (WPADBusMethodHandler) wpas_dbus_handler_dpp_bootstrap_gen,
 	  {
-		  { "type", "s", ARG_IN },
 		  { "args", "a{sv}", ARG_IN },
 		  { "path", "o", ARG_OUT },
 		  END_ARGS
@@ -3838,7 +3837,7 @@ static const struct wpa_dbus_property_desc wpas_dbus_interface_properties[] = {
       NULL,
       NULL
 	},
-	{ "BootstrapInfo", WPAS_DBUS_NEW_IFACE_DPP, "as",
+	{ "BootstrapInfo", WPAS_DBUS_NEW_IFACE_DPP, "ao",
       wpas_dbus_getter_dpp_bi,
       NULL,
       NULL
