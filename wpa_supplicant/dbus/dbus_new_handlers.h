@@ -284,6 +284,8 @@ DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_pubkey_hash);
 
 DBusMessage * wpas_dbus_handler_dpp_announce_presence(DBusMessage *message,
 					  struct wpa_supplicant *wpa_s);
+DBusMessage * wpas_dbus_handler_dpp_stop_announce_presence(DBusMessage *message,
+					  struct wpa_supplicant *wpa_s);
 DBusMessage * wpas_dbus_handler_dpp_bootstrap_gen(DBusMessage *message,
 					  struct wpa_supplicant *wpa_s);
 

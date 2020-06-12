@@ -3566,6 +3566,12 @@ static const struct wpa_dbus_method_desc wpas_dbus_interface_methods[] = {
 		  END_ARGS
 	  }
 	},
+	{ "StopAnnouncePresence", WPAS_DBUS_NEW_IFACE_DPP,
+	  (WPADBusMethodHandler) wpas_dbus_handler_dpp_stop_announce_presence,
+	  {
+		  END_ARGS
+	  }
+	},
 	{ "BootstrapGen", WPAS_DBUS_NEW_IFACE_DPP,
 	  (WPADBusMethodHandler) wpas_dbus_handler_dpp_bootstrap_gen,
 	  {

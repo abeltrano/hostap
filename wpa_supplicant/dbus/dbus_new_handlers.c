@@ -5643,6 +5643,22 @@ err:
 
 
 /*
+ * wpas_dbus_handler_dpp_stop_announce_presence - Stop DPP presence announcement
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: wpa_supplicant structure for a network interface
+ * Returns: NULL
+ *
+ * Handler function for "StopAnnouncePresence" method call of DPP interface.
+ */
+DBusMessage * wpas_dbus_handler_dpp_stop_announce_presence(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s)
+{
+	wpas_dpp_announce_presence_stop(wpa_s);
+	return NULL;
+}
+
+
+/*
  * wpas_dbus_handler_dpp_bootstrap_gen - Generate DPP bootstrap info
  * @message: Pointer to incoming dbus message
  * @wpa_s: wpa_supplicant structure for a network interface
