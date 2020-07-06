@@ -823,6 +823,13 @@ void dpp_bootstrap_info_free(struct dpp_bootstrap_info *info)
 	os_free(info->info);
 	os_free(info->chan);
 	os_free(info->pk);
+#ifndef OPENSSL_NO_ENGINE
+	os_free(info->key_id);
+	os_free(info->engine_id);
+	os_free(info->engine_path);
+	if (info->engine)
+		ENGINE_finish(info->engine);
+#endif /* OPENSSL_NO_ENGINE */
 	EVP_PKEY_free(info->pubkey);
 	os_free(info);
 }
@@ -1380,6 +1387,186 @@ static EVP_PKEY * dpp_set_keypair(const struct dpp_curve_params **curve,
 }
 
 
+#ifndef OPENSSL_NO_ENGINE
+
+/**
+ * openssl_engine_load_dynamic_generic - load any openssl engine
+ * @pre: an array of commands and values that load an engine initialized
+ *       in the engine specific function
+ * @post: an array of commands and values that initialize an already loaded
+ *        engine (or %NULL if not required)
+ * @id: the engine id of the engine to load (only required if post is not %NULL)
+ *
+ * This function is a generic function that loads any openssl engine.
+ *
+ * Returns: 0 on success, -1 on failure
+ */
+static int openssl_engine_load_dynamic_generic(const char *pre[],
+					   const char *post[], const char *id)
+{
+	ENGINE *engine;
+	const char *dynamic_id = "dynamic";
+
+	engine = ENGINE_by_id(id);
+	if (engine) {
+		wpa_printf(MSG_DEBUG, "ENGINE: engine '%s' is already "
+			   "available", id);
+		/*
+		 * If it was auto-loaded by ENGINE_by_id() we might still
+		 * need to execute post-init commands. Do so now; even if
+		 * it was properly initialised before, setting it again
+		 * will be harmless.
+		 */
+		goto found;
+	}
+	ERR_clear_error();
+
+	engine = ENGINE_by_id(dynamic_id);
+	if (engine == NULL) {
+		wpa_printf(MSG_INFO, "ENGINE: Can't find engine %s [%s]",
+			   dynamic_id,
+			   ERR_error_string(ERR_get_error(), NULL));
+		return -1;
+	}
+
+	/* Perform the pre commands. This will load the engine. */
+	while (pre && pre[0]) {
+		wpa_printf(MSG_DEBUG, "ENGINE: '%s' '%s'", pre[0], pre[1]);
+		if (ENGINE_ctrl_cmd_string(engine, pre[0], pre[1], 0) == 0) {
+			wpa_printf(MSG_INFO, "ENGINE: ctrl cmd_string failed: "
+				   "%s %s [%s]", pre[0], pre[1],
+				   ERR_error_string(ERR_get_error(), NULL));
+			ENGINE_free(engine);
+			return -1;
+		}
+		pre += 2;
+	}
+
+	/*
+	 * Free the reference to the "dynamic" engine. The loaded engine can
+	 * now be looked up using ENGINE_by_id().
+	 */
+	ENGINE_free(engine);
+
+	engine = ENGINE_by_id(id);
+	if (engine == NULL) {
+		wpa_printf(MSG_INFO, "ENGINE: Can't find engine %s [%s]",
+			   id, ERR_error_string(ERR_get_error(), NULL));
+		return -1;
+	}
+ found:
+	while (post && post[0]) {
+		wpa_printf(MSG_DEBUG, "ENGINE: '%s' '%s'", post[0], post[1]);
+		if (ENGINE_ctrl_cmd_string(engine, post[0], post[1], 0) == 0) {
+			wpa_printf(MSG_DEBUG, "ENGINE: ctrl cmd_string failed:"
+				" %s %s [%s]", post[0], post[1],
+				   ERR_error_string(ERR_get_error(), NULL));
+			ENGINE_remove(engine);
+			ENGINE_free(engine);
+			return -1;
+		}
+		post += 2;
+	}
+	ENGINE_free(engine);
+
+	return 0;
+}
+
+static int dpp_openssl_engine_load_dynamic(const char *engine_id,
+			const char *engine_path)
+{
+	const char *pre_cmd[] = {
+		"SO_PATH", NULL /* engine_path */,
+		"ID", NULL /* engine_id */,
+		"LIST_ADD", "1",
+		"LOAD", NULL,
+		NULL, NULL
+	};
+	const char *post_cmd[] = {
+		NULL, NULL
+	};
+
+	if (!engine_id || !engine_path)
+		return 0;
+
+	pre_cmd[1] = engine_path;
+	pre_cmd[3] = engine_id;
+
+	wpa_printf(MSG_DEBUG, "ENGINE: Loading %s Engine from %s",
+		   engine_id, engine_path);
+
+	return openssl_engine_load_dynamic_generic(pre_cmd, post_cmd, engine_id);
+}
+
+
+static int dpp_bootstrap_key_load_engine(struct dpp_bootstrap_info *bi)
+{
+	if (dpp_openssl_engine_load_dynamic(bi->engine_id, bi->engine_path) < 0)
+		return -1;
+
+	ENGINE *engine = ENGINE_by_id(bi->engine_id);
+	if (!engine) {
+		wpa_printf(MSG_ERROR, "ENGINE: engine %s not available [%s]",
+			bi->engine_id, ERR_error_string(ERR_get_error(), NULL));
+		return -1;
+	}
+
+	if (ENGINE_init(engine) != 1) {
+		wpa_printf(MSG_ERROR, "ENGINE: engine init failed "
+			"(engine: %s) [%s]", bi->engine_id,
+			ERR_error_string(ERR_get_error(), NULL));
+		ENGINE_free(engine);
+		return -1;
+	}
+
+	bi->engine = engine;
+	return 0;
+}
+
+
+static EVP_PKEY * dpp_load_keypair(const struct dpp_curve_params **curve,
+				  ENGINE *engine, const char *key_id)
+{
+	EVP_PKEY *pkey;
+	EC_KEY *eckey;
+	const EC_GROUP *group;
+	int nid;
+
+	pkey = ENGINE_load_private_key(engine, key_id, NULL, NULL);
+	if (!pkey) {
+		wpa_printf(MSG_ERROR, "ENGINE: cannot load private key with id '%s' [%s]",
+			key_id, ERR_error_string(ERR_get_error(), NULL));
+		return NULL;
+	}
+
+	eckey = EVP_PKEY_get1_EC_KEY(pkey);
+	if (!eckey) {
+		EVP_PKEY_free(pkey);
+		return NULL;
+	}
+	group = EC_KEY_get0_group(eckey);
+	if (!group) {
+		EC_KEY_free(eckey);
+		EVP_PKEY_free(pkey);
+		return NULL;
+	}
+	nid = EC_GROUP_get_curve_name(group);
+	*curve = dpp_get_curve_nid(nid);
+	if (!*curve) {
+		wpa_printf(MSG_INFO,
+			   "DPP: Unsupported curve (nid=%d) in pre-assigned key",
+			   nid);
+		EC_KEY_free(eckey);
+		EVP_PKEY_free(pkey);
+		return NULL;
+	}
+	EC_KEY_free(eckey);
+	return pkey;
+}
+
+#endif /* OPENSSL_NO_ENGINE */
+
+
 typedef struct {
 	/* AlgorithmIdentifier ecPublicKey with optional parameters present
 	 * as an OID identifying the curve */
@@ -1522,6 +1709,10 @@ static int dpp_keygen(struct dpp_bootstrap_info *bi, const char *curve,
 	}
 	if (privkey)
 		bi->pubkey = dpp_set_keypair(&bi->curve, privkey, privkey_len);
+#ifndef OPENSSL_NO_ENGINE
+	else if (bi->engine)
+		bi->pubkey = dpp_load_keypair(&bi->curve, bi->engine, bi->key_id);
+#endif /* OPENSSL_NO_ENGINE */
 	else
 		bi->pubkey = dpp_gen_keypair(bi->curve);
 	if (!bi->pubkey)
@@ -9197,6 +9388,16 @@ int dpp_bootstrap_gen(struct dpp_global *dpp, const char *cmd)
 		bi->type = DPP_BOOTSTRAP_CHIRP;
 	else
 		goto fail;
+
+#ifndef OPENSSL_NO_ENGINE
+	bi->key_id = get_param(cmd, " key_id=");
+	bi->engine_id = get_param(cmd, " engine=");
+	bi->engine_path = get_param(cmd, " engine_path=");
+	if (bi->key_id && bi->engine_id && bi->engine_path) {
+		if (dpp_bootstrap_key_load_engine(bi) < 0)
+			goto fail;
+	}
+#endif /* OPENSSL_NO_ENGINE */
 
 	bi->chan = get_param(cmd, " chan=");
 	mac = get_param(cmd, " mac=");
