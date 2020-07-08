@@ -5083,6 +5083,23 @@ static const struct wpa_dbus_property_desc wpas_dbus_dpp_bi_properties[] = {
 	  NULL,
 	  NULL
 	},
+#ifndef OPENSSL_NO_ENGINE
+	{ "EngineId", WPAS_DBUS_NEW_IFACE_DPP_BI, "s",
+	  wpas_dbus_getter_dpp_bi_engine_id,
+	  NULL,
+	  NULL
+	},
+	{ "EnginePath", WPAS_DBUS_NEW_IFACE_DPP_BI, "s",
+	  wpas_dbus_getter_dpp_bi_engine_path,
+	  NULL,
+	  NULL
+	},
+	{ "KeyId", WPAS_DBUS_NEW_IFACE_DPP_BI, "s",
+	  wpas_dbus_getter_dpp_bi_key_id,
+	  NULL,
+	  NULL
+	},
+#endif /* OPENSSL_NO_ENGINE */
 	{ NULL, NULL, NULL, NULL, NULL, NULL }
 };
 

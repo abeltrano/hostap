@@ -9435,7 +9435,7 @@ fail:
 }
 
 
-int dpp_bootstrap_gen2(struct dpp_global *dpp, const char *type, const char *chan, const char *mac, const char *info, const char *curve, const char *key)
+int dpp_bootstrap_gen2(struct dpp_global *dpp, const char *type, const char *chan, const char *mac, const char *info, const char *curve, const char *key, const char *engine_id, const char *engine_path, const char *key_id)
 {
 	u8 *privkey = NULL;
 	size_t privkey_len = 0;
@@ -9450,6 +9450,28 @@ int dpp_bootstrap_gen2(struct dpp_global *dpp, const char *type, const char *cha
 		goto fail;
 	if (dpp_bootstrap_type_parse(&bi->type, type) < 0)
 		goto fail;
+
+#ifndef OPENSSL_NO_ENGINE
+	if (key_id) {
+		bi->key_id = os_strdup(key_id);
+		if (!bi->key_id)
+			goto fail;
+	}
+	if (engine_id) {
+		bi->engine_id = os_strdup(engine_id);
+		if (!bi->engine_id)
+			goto fail;
+	}
+	if (engine_path) {
+		bi->engine_path = os_strdup(engine_path);
+		if (!bi->engine_path)
+			goto fail;
+	}
+	if (bi->key_id && bi->engine_id && bi->engine_path) {
+		if (dpp_bootstrap_key_load_engine(bi) < 0)
+			goto fail;
+	}
+#endif /* OPENSSL_NO_ENGINE */
 
 	if (chan) {
 		bi->chan = os_strdup(chan);

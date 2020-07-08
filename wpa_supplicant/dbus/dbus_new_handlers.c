@@ -5680,6 +5680,9 @@ DBusMessage * wpas_dbus_handler_dpp_bootstrap_gen(DBusMessage *message,
 	char *key = NULL;
 	char *mac = NULL;
 	char *info = NULL;
+	char *engine_id = NULL;
+	char *engine_path = NULL;
+	char *key_id = NULL;
 	char path_buf[WPAS_DBUS_OBJECT_PATH_MAX], *path = path_buf;
 
 	dbus_message_iter_init(message, &iter);
@@ -5705,6 +5708,12 @@ DBusMessage * wpas_dbus_handler_dpp_bootstrap_gen(DBusMessage *message,
 				value = &mac;
 			else if (os_strcmp(entry.key, "info") == 0)
 				value = &info;
+			else if (os_strcmp(entry.key, "engine_id") == 0)
+				value = &engine_id;
+			else if (os_strcmp(entry.key, "engine_path") == 0)
+				value = &engine_path;
+			else if (os_strcmp(entry.key, "key_id") == 0)
+				value = &key_id;
 			else {
 				wpa_dbus_dict_entry_clear(&entry);
 				goto err;
@@ -5718,7 +5727,7 @@ DBusMessage * wpas_dbus_handler_dpp_bootstrap_gen(DBusMessage *message,
 		}
 	}
 
-	ret = wpas_dpp_bootstrap_gen2(wpa_s, type, chan, mac, info, curve, key);
+	ret = wpas_dpp_bootstrap_gen2(wpa_s, type, chan, mac, info, curve, key, engine_id, engine_path, key_id);
 	if (ret < 0)
 		goto err;
 
@@ -6056,5 +6065,96 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_pubkey_hash(
 						      bi->pubkey_hash, SHA256_MAC_LEN,
 						      error);
 }
+
+
+#ifndef OPENSSL_NO_ENGINE
+
+/**
+ * wpas_dbus_getter_dpp_bi_engine_id - Return the engine
+ * id of a DPP bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "EngineId" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_engine_id(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct dpp_bootstrap_info *bi;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+
+	bi = dpp_bootstrap_get_id(dpp, args->id);
+	if (!bi)
+		return FALSE;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+				           &bi->engine_id, error);
+}
+
+
+/**
+ * wpas_dbus_getter_dpp_bi_engine_path - Return the engine
+ * path of a DPP bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "EnginePath" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_engine_path(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct dpp_bootstrap_info *bi;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+
+	bi = dpp_bootstrap_get_id(dpp, args->id);
+	if (!bi)
+		return FALSE;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+				           &bi->engine_path, error);
+}
+
+
+/**
+ * wpas_dbus_getter_dpp_bi_key_id - Return the key
+ * id of a DPP bootstrap info object
+ * @iter: Pointer to incoming dbus message iter
+ * @error: Location to store error on failure
+ * @user_data: Function specific data
+ * Returns: TRUE on success, FALSE on failure
+ *
+ * Getter for "KeyId" property.
+ */
+dbus_bool_t wpas_dbus_getter_dpp_bi_key_id(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct dpp_bootstrap_info *bi;
+	struct dpp_bi_handler_args *args = user_data;
+	struct dpp_global *dpp = args->wpa_s->dpp;
+	if (!dpp)
+		return FALSE;
+
+	bi = dpp_bootstrap_get_id(dpp, args->id);
+	if (!bi)
+		return FALSE;
+
+	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
+				           &bi->key_id, error);
+}
+
+#endif /* OPENSSL_NO_ENGINE */
 
 #endif /* CONFIG_DPP */

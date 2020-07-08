@@ -43,7 +43,8 @@ void wpas_dpp_set_state(struct wpa_supplicant *wpa_s, enum dpp_state dpp_state);
 int wpas_dpp_bootstrap_gen(struct wpa_supplicant *wpa_s, const char *cmd);
 int wpas_dpp_bootstrap_gen2(struct wpa_supplicant *wpa_s, const char *type,
 	const char *chan, const char *mac, const char *info, const char *curve,
-	const char *key);
+	const char *key, const char *engine_id, const char *engine_path,
+	const char *key_id);
 int wpas_dpp_bootstrap_remove(struct wpa_supplicant *wpa_s, const char *id);
 
 #endif /* DPP_SUPPLICANT_H */

@@ -282,6 +282,12 @@ DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_freqs);
 DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_curve);
 DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_pubkey_hash);
 
+#ifndef OPENSSL_NO_ENGINE
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_engine_id);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_engine_path);
+DECLARE_ACCESSOR(wpas_dbus_getter_dpp_bi_key_id);
+#endif /* OPENSSL_NO_ENGINE */
+
 DBusMessage * wpas_dbus_handler_dpp_announce_presence(DBusMessage *message,
 					  struct wpa_supplicant *wpa_s);
 DBusMessage * wpas_dbus_handler_dpp_stop_announce_presence(DBusMessage *message,

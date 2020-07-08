@@ -2959,9 +2959,10 @@ int wpas_dpp_bootstrap_gen(struct wpa_supplicant *wpa_s, const char *cmd)
 
 int wpas_dpp_bootstrap_gen2(struct wpa_supplicant *wpa_s, const char *type,
 	const char *chan, const char *mac, const char *info, const char *curve,
-	const char *key)
+	const char *key, const char *engine_id, const char *engine_path,
+	const char *key_id)
 {
-	int ret = dpp_bootstrap_gen2(wpa_s->dpp, type, chan, mac, info, curve, key);
+	int ret = dpp_bootstrap_gen2(wpa_s->dpp, type, chan, mac, info, curve, key, engine_id, engine_path, key_id);
 	if (ret >= 0)
 		wpas_notify_dpp_bi_added(wpa_s, (unsigned)ret);
 	return ret;
