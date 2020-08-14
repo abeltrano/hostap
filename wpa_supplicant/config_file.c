@@ -11,9 +11,9 @@
  */
 
 #include "includes.h"
-#ifdef ANDROID
+#if defined(ANDROID) || !defined(CONFIG_NO_CONFIG_WRITE)
 #include <sys/stat.h>
-#endif /* ANDROID */
+#endif /* ANDROID || !CONFIG_NO_CONFIG_WRITE */
 
 #include "common.h"
 #include "config.h"
@@ -1578,6 +1578,42 @@ static void wpa_config_write_global(FILE *f, struct wpa_config *config)
 
 #endif /* CONFIG_NO_CONFIG_WRITE */
 
+static int get_conf_link_target(const char *name, char **target)
+{
+	ssize_t len;
+	char *path;
+	struct stat statbuf;
+
+	if (lstat(name, &statbuf) < 0) {
+		wpa_printf(MSG_DEBUG, "Failed to stat configuration file '%s'", name);
+		return -1;
+	} else if (!S_ISLNK(statbuf.st_mode)) {
+		path = NULL;
+		goto out;
+	}
+
+	path = os_malloc(statbuf.st_size+1);
+	if (!path) {
+		wpa_printf(MSG_DEBUG, "Failed to allocate memory for configuration file '%s' link target", name);
+		return -1;
+	}
+
+	len = readlink(name, path, statbuf.st_size+1);
+	if (len < 0) {
+		wpa_printf(MSG_DEBUG, "Failed to obtain configuration file '%s' link target", name);
+		os_free(path);
+		return -1;
+	} else if (len > statbuf.st_size) {
+		wpa_printf(MSG_DEBUG, "Configuration file '%s' link target changed", name);
+		os_free(path);
+		return -1;
+	}
+
+	path[len] = '\0';
+out:
+	*target = path;
+	return 0;
+}
 
 int wpa_config_write(const char *name, struct wpa_config *config)
 {
@@ -1589,9 +1625,19 @@ int wpa_config_write(const char *name, struct wpa_config *config)
 	struct wpa_config_blob *blob;
 #endif /* CONFIG_NO_CONFIG_BLOBS */
 	int ret = 0;
-	const char *orig_name = name;
-	int tmp_len = os_strlen(name) + 5; /* allow space for .tmp suffix */
-	char *tmp_name = os_malloc(tmp_len);
+	const char *orig_name;
+	int tmp_len;
+	char *tmp_name;
+	char *link_target;
+
+	if (get_conf_link_target(name, &link_target) < 0)
+		return -1;
+	if (link_target)
+		name = link_target;
+
+	orig_name = name;
+	tmp_len = os_strlen(name) + 5; /* allow space for .tmp suffix */
+	tmp_name = os_malloc(tmp_len);
 
 	if (tmp_name) {
 		os_snprintf(tmp_name, tmp_len, "%s.tmp", name);
@@ -1604,6 +1650,7 @@ int wpa_config_write(const char *name, struct wpa_config *config)
 	if (f == NULL) {
 		wpa_printf(MSG_DEBUG, "Failed to open '%s' for writing", name);
 		os_free(tmp_name);
+		os_free(link_target);
 		return -1;
 	}
 
@@ -1651,6 +1698,7 @@ int wpa_config_write(const char *name, struct wpa_config *config)
 			ret = -1;
 
 		os_free(tmp_name);
+		os_free(link_target);
 	}
 
 	wpa_printf(MSG_DEBUG, "Configuration file '%s' written %ssuccessfully",
