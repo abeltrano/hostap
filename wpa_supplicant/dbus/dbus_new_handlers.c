@@ -5881,8 +5881,7 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_uri(
 	if (!bi)
 		return FALSE;
 
-	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
-						   &bi->uri, error);
+	return wpas_dbus_string_property_getter(iter, bi->uri, error);
 }
 
 /**
@@ -5939,11 +5938,7 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_chan(
 	if (!bi)
 		return FALSE;
 
-	const char *chan = bi->chan;
-	if (!chan)
-		chan = "";
-	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
-						   &chan, error);
+	return wpas_dbus_string_property_getter(iter, bi->chan, error);
 }
 
 
@@ -5961,7 +5956,6 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_info(
 	const struct wpa_dbus_property_desc *property_desc,
 	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
-	const char *info;
 	struct dpp_bootstrap_info *bi;
 	struct dpp_bi_handler_args *args = user_data;
 	struct dpp_global *dpp = args->wpa_s->dpp;
@@ -5972,9 +5966,7 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_info(
 	if (!bi)
 		return FALSE;
 
-	info = bi->info != NULL ? bi->info : "";
-	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
-						   &info, error);
+	return wpas_dbus_string_property_getter(iter, bi->info, error);
 }
 
 
@@ -6022,6 +6014,7 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_curve(
 	const struct wpa_dbus_property_desc *property_desc,
 	DBusMessageIter *iter, DBusError *error, void *user_data)
 {
+	const char *curve;
 	struct dpp_bootstrap_info *bi;
 	struct dpp_bi_handler_args *args = user_data;
 	struct dpp_global *dpp = args->wpa_s->dpp;
@@ -6032,8 +6025,8 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_curve(
 	if (!bi)
 		return FALSE;
 
-	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
-						   &bi->curve->name, error);
+	curve = bi->curve ? bi->curve->name : "";
+	return wpas_dbus_string_property_getter(iter, curve, error);
 }
 
 
@@ -6093,8 +6086,7 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_engine_id(
 	if (!bi)
 		return FALSE;
 
-	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
-				           &bi->engine_id, error);
+	return wpas_dbus_string_property_getter(iter, bi->engine_id, error);
 }
 
 
@@ -6122,8 +6114,7 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_engine_path(
 	if (!bi)
 		return FALSE;
 
-	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
-				           &bi->engine_path, error);
+	return wpas_dbus_string_property_getter(iter, bi->engine_path, error);
 }
 
 
@@ -6151,8 +6142,7 @@ dbus_bool_t wpas_dbus_getter_dpp_bi_key_id(
 	if (!bi)
 		return FALSE;
 
-	return wpas_dbus_simple_property_getter(iter, DBUS_TYPE_STRING,
-				           &bi->key_id, error);
+	return wpas_dbus_string_property_getter(iter, bi->key_id, error);
 }
 
 #endif /* OPENSSL_NO_ENGINE */
