@@ -291,6 +291,9 @@ NEED_JSON=y
 NEED_GAS_SERVER=y
 NEED_BASE64=y
 NEED_ASN1=y
+ifndef OPENSSL_NO_ENGINE
+NEED_OPENSSL_ENGINE=y
+endif
 ifdef CONFIG_DPP2
 CFLAGS += -DCONFIG_DPP2
 endif
@@ -1104,6 +1107,9 @@ endif
 ifeq ($(CONFIG_TLS), openssl)
 ifdef TLS_FUNCS
 CFLAGS += -DEAP_TLS_OPENSSL
+ifndef OPENSSL_NO_ENGINE
+NEED_OPENSSL_ENGINE=y
+endif
 OBJS += ../src/crypto/tls_openssl.o
 OBJS += ../src/crypto/tls_openssl_ocsp.o
 LIBS += -lssl
@@ -1794,6 +1800,11 @@ endif
 ifdef NEED_JSON
 OBJS += ../src/utils/json.o
 CFLAGS += -DCONFIG_JSON
+endif
+
+ifdef NEED_OPENSSL_ENGINE
+OBJS += ../src/crypto/openssl_engine.o
+CFLAGS += -DCONFIG_OPENSSL_ENGINE
 endif
 
 ifdef CONFIG_MODULE_TESTS
