@@ -814,7 +814,7 @@ static int tls_engine_load_dynamic_pkcs11(const char *pkcs11_so_path,
 	wpa_printf(MSG_DEBUG, "ENGINE: Loading pkcs11 Engine from %s",
 		   pkcs11_so_path);
 
-	return tls_engine_load_dynamic_generic(pre_cmd, post_cmd, engine_id);
+	return openssl_engine_load_dynamic_generic(pre_cmd, post_cmd, engine_id);
 }
 
 
@@ -842,7 +842,7 @@ static int tls_engine_load_dynamic_opensc(const char *opensc_so_path)
 	wpa_printf(MSG_DEBUG, "ENGINE: Loading OpenSC Engine from %s",
 		   opensc_so_path);
 
-	return tls_engine_load_dynamic_generic(pre_cmd, NULL, engine_id);
+	return openssl_engine_load_dynamic_generic(pre_cmd, NULL, engine_id);
 }
 #endif /* OPENSSL_NO_ENGINE */
 
