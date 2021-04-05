@@ -6,5 +6,5 @@
  * See README for more details.
  */
 
-int tls_engine_load_dynamic_generic(const char *pre[],
+int openssl_engine_load_dynamic_generic(const char *pre[],
 					   const char *post[], const char *id);
