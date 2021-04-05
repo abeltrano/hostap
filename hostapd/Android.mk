@@ -560,6 +560,9 @@ NEED_JSON=y
 NEED_GAS=y
 NEED_BASE64=y
 NEED_ASN1=y
+ifndef OPENSSL_NO_ENGINE
+NEED_OPENSSL_ENGINE=y
+endif
 ifdef CONFIG_DPP2
 L_CFLAGS += -DCONFIG_DPP2
 endif
@@ -647,6 +650,9 @@ endif
 
 ifeq ($(CONFIG_TLS), openssl)
 ifdef TLS_FUNCS
+ifndef OPENSSL_NO_ENGINE
+NEED_OPENSSL_ENGINE=y
+endif
 OBJS += src/crypto/tls_openssl.c
 OBJS += src/crypto/tls_openssl_ocsp.c
 LIBS += -lssl
@@ -1053,6 +1059,11 @@ endif
 ifdef NEED_GAS
 OBJS += src/common/gas.c
 OBJS += src/ap/gas_serv.c
+endif
+
+ifdef NEED_OPENSSL_ENGINE
+OBJS += src/crypto/openssl_engine.o
+CFLAGS += -DCONFIG_OPENSSL_ENGINE
 endif
 
 ifdef CONFIG_PROXYARP

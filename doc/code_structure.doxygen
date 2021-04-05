@@ -126,6 +126,9 @@ with with hostapd. The following C files are currently used:
 \ref ms_funcs.c and \ref ms_funcs.h
 	Helper functions for MSCHAPV2 and LEAP
 
+\ref openssl_engine.c
+	Helper functions for OpenSSL engine functionality
+
 \ref tls.h
 	Definition of TLS library wrapper
 
