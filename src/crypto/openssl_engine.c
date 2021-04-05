@@ -14,7 +14,7 @@
 #include "openssl_engine.h"
 
 /**
- * tls_engine_load_dynamic_generic - load any openssl engine
+ * openssl_engine_load_dynamic_generic - load any openssl engine
  * @pre: an array of commands and values that load an engine initialized
  *       in the engine specific function
  * @post: an array of commands and values that initialize an already loaded
@@ -25,7 +25,7 @@
  *
  * Returns: 0 on success, -1 on failure
  */
-int tls_engine_load_dynamic_generic(const char *pre[],
+int openssl_engine_load_dynamic_generic(const char *pre[],
 					   const char *post[], const char *id)
 {
 	ENGINE *engine;
@@ -37,10 +37,9 @@ int tls_engine_load_dynamic_generic(const char *pre[],
 			   "available", id);
 		/*
 		 * If it was auto-loaded by ENGINE_by_id() we might still
-		 * need to tell it which PKCS#11 module to use in legacy
-		 * (non-p11-kit) environments. Do so now; even if it was
-		 * properly initialised before, setting it again will be
-		 * harmless.
+		 * need to execute post-init commands. Do so now; even if
+		 * it was properly initialised before, setting it again
+		 * will be harmless.
 		 */
 		goto found;
 	}
