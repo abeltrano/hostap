@@ -647,6 +647,9 @@ endif
 
 ifeq ($(CONFIG_TLS), openssl)
 ifdef TLS_FUNCS
+ifndef OPENSSL_NO_ENGINE
+OBJS += ../src/crypto/openssl_engine.o
+endif
 OBJS += src/crypto/tls_openssl.c
 OBJS += src/crypto/tls_openssl_ocsp.c
 LIBS += -lssl

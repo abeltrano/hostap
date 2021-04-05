@@ -122,6 +122,7 @@ OBJS = \
 	$(OBJDIR)\l2_packet_winpcap.obj \
 	$(OBJDIR)\tls_openssl.obj \
 	$(OBJDIR)\ms_funcs.obj \
+	$(OBJDIR)\openssl_engine.obj \
 	$(OBJDIR)\crypto_openssl.obj \
 	$(OBJDIR)\fips_prf_openssl.obj \
 	$(OBJDIR)\pcsc_funcs.obj \

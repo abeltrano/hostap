@@ -395,6 +395,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\src\crypto\openssl_engine.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\src\crypto\sha1.c"
 				>
 			</File>
