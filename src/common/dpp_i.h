@@ -12,6 +12,10 @@
 
 #ifdef CONFIG_DPP
 
+#ifdef CONFIG_OPENSSL_ENGINE
+#include <openssl/engine.h>
+#endif /* CONFIG_OPENSSL_ENGINE */
+
 struct dpp_global {
 	void *msg_ctx;
 	struct dl_list bootstrap; /* struct dpp_bootstrap_info */
@@ -139,6 +143,9 @@ char * dpp_sign_connector(struct dpp_configurator *conf,
 			  const struct wpabuf *dppcon);
 int dpp_test_gen_invalid_key(struct wpabuf *msg,
 			     const struct dpp_curve_params *curve);
+#ifdef CONFIG_OPENSSL_ENGINE
+ENGINE * dpp_load_engine(const char *engine_id, const char *engine_path);
+#endif /* CONFIG_OPENSSL_ENGINE */
 
 struct dpp_reconfig_id {
 	const EC_GROUP *group;

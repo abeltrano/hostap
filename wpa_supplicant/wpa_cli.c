@@ -3855,7 +3855,7 @@ static const struct wpa_cli_cmd wpa_cli_commands[] = {
 	  "report a scanned DPP URI from a QR Code" },
 	{ "dpp_bootstrap_gen", wpa_cli_cmd_dpp_bootstrap_gen, NULL,
 	  cli_cmd_flag_sensitive,
-	  "type=<qrcode> [chan=..] [mac=..] [info=..] [curve=..] [key=..] = generate DPP bootstrap information" },
+	  "type=<qrcode> [chan=..] [mac=..] [info=..] [curve=..] [key=..] [key_id=..] [engine=..] [engine_path=..] = generate DPP bootstrap information" },
 	{ "dpp_bootstrap_remove", wpa_cli_cmd_dpp_bootstrap_remove, NULL,
 	  cli_cmd_flag_none,
 	  "*|<id> = remove DPP bootstrap information" },
