@@ -19,6 +19,9 @@
 #include "utils/json.h"
 #include "common/ieee802_11_defs.h"
 #include "crypto/crypto.h"
+#ifdef CONFIG_OPENSSL_ENGINE
+#include "crypto/openssl_engine.h"
+#endif
 #include "crypto/random.h"
 #include "crypto/sha384.h"
 #include "crypto/sha512.h"
@@ -361,6 +364,100 @@ int dpp_pbkdf2(size_t hash_len, const u8 *password, size_t password_len,
 }
 
 #endif /* CONFIG_DPP2 */
+
+
+#ifdef CONFIG_OPENSSL_ENGINE
+static EVP_PKEY * dpp_load_keypair(const struct dpp_curve_params **curve,
+				  ENGINE *engine, const char *key_id)
+{
+	EVP_PKEY *pkey;
+	EC_KEY *eckey;
+	const EC_GROUP *group;
+	int nid;
+
+	pkey = ENGINE_load_private_key(engine, key_id, NULL, NULL);
+	if (!pkey) {
+		wpa_printf(MSG_ERROR, "ENGINE: cannot load private key with id '%s' [%s]",
+			key_id, ERR_error_string(ERR_get_error(), NULL));
+		return NULL;
+	}
+
+	eckey = EVP_PKEY_get1_EC_KEY(pkey);
+	if (!eckey) {
+		EVP_PKEY_free(pkey);
+		return NULL;
+	}
+
+	group = EC_KEY_get0_group(eckey);
+	if (!group) {
+		EC_KEY_free(eckey);
+		EVP_PKEY_free(pkey);
+		return NULL;
+	}
+
+	nid = EC_GROUP_get_curve_name(group);
+	*curve = dpp_get_curve_nid(nid);
+	if (!*curve) {
+		wpa_printf(MSG_INFO,
+			   "DPP: Unsupported curve (nid=%d) in pre-assigned key",
+			   nid);
+		EC_KEY_free(eckey);
+		EVP_PKEY_free(pkey);
+		return NULL;
+	}
+
+	EC_KEY_free(eckey);
+	return pkey;
+}
+
+
+static int dpp_openssl_engine_load_dynamic(const char *engine_id,
+			const char *engine_path)
+{
+	const char *pre_cmd[] = {
+		"SO_PATH", engine_path,
+		"ID", engine_id,
+		"LIST_ADD", "1",
+		"LOAD", NULL,
+		NULL, NULL
+	};
+	const char *post_cmd[] = {
+		NULL, NULL
+	};
+
+	if (!engine_id || !engine_path)
+		return 0;
+
+	wpa_printf(MSG_DEBUG, "ENGINE: Loading %s Engine from %s",
+		   engine_id, engine_path);
+
+	return openssl_engine_load_dynamic_generic(pre_cmd, post_cmd, engine_id);
+}
+
+
+ENGINE * dpp_load_engine(const char *engine_id, const char *engine_path)
+{
+	if (dpp_openssl_engine_load_dynamic(engine_id, engine_path) < 0)
+		return NULL;
+
+	ENGINE *engine = ENGINE_by_id(engine_id);
+	if (!engine) {
+		wpa_printf(MSG_ERROR, "ENGINE: engine %s not available [%s]",
+			engine_id, ERR_error_string(ERR_get_error(), NULL));
+		return NULL;
+	}
+
+	if (ENGINE_init(engine) != 1) {
+		wpa_printf(MSG_ERROR, "ENGINE: engine init failed "
+			"(engine: %s) [%s]", engine_id,
+			ERR_error_string(ERR_get_error(), NULL));
+		ENGINE_free(engine);
+		return NULL;
+	}
+
+	return engine;
+}
+#endif /* CONFIG_OPENSSL_ENGINE */
 
 
 int dpp_bn2bin_pad(const BIGNUM *bn, u8 *pos, size_t len)
@@ -730,6 +827,10 @@ int dpp_keygen(struct dpp_bootstrap_info *bi, const char *curve,
 
 	if (privkey)
 		bi->pubkey = dpp_set_keypair(&bi->curve, privkey, privkey_len);
+#ifdef CONFIG_OPENSSL_ENGINE
+	else if (bi->engine)
+		bi->pubkey = dpp_load_keypair(&bi->curve, bi->engine, bi->key_id);
+#endif /* CONFIG_OPENSSL_ENGINE */
 	else
 		bi->pubkey = dpp_gen_keypair(bi->curve);
 	if (!bi->pubkey)
