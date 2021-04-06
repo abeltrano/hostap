@@ -1545,15 +1545,23 @@ int wpa_config_write(const char *name, struct wpa_config *config)
 	struct wpa_config_blob *blob;
 #endif /* CONFIG_NO_CONFIG_BLOBS */
 	int ret = 0;
-	const char *orig_name = name;
+	const char *orig_name;
 	int tmp_len;
 	char *tmp_name;
+	char *link_target;
 
 	if (!name) {
 		wpa_printf(MSG_ERROR, "No configuration file for writing");
 		return -1;
-	}
+	} else if (read_link_target(name, &link_target) < 0) {
+		wpa_printf(MSG_ERROR, "Failed to read '%s' link target for writing", name);
+		return -1;
+	} 
 
+	if (link_target)
+		name = link_target;
+
+	orig_name = name;
 	tmp_len = os_strlen(name) + 5; /* allow space for .tmp suffix */
 	tmp_name = os_malloc(tmp_len);
 	if (tmp_name) {
@@ -1567,6 +1575,7 @@ int wpa_config_write(const char *name, struct wpa_config *config)
 	if (f == NULL) {
 		wpa_printf(MSG_DEBUG, "Failed to open '%s' for writing", name);
 		os_free(tmp_name);
+		os_free(link_target);
 		return -1;
 	}
 
@@ -1618,6 +1627,8 @@ int wpa_config_write(const char *name, struct wpa_config *config)
 
 		os_free(tmp_name);
 	}
+
+	os_free(link_target);
 
 	wpa_printf(MSG_DEBUG, "Configuration file '%s' written %ssuccessfully",
 		   orig_name, ret ? "un" : "");
