@@ -8,6 +8,7 @@
 
 #include "includes.h"
 #include <limits.h>
+#include <sys/stat.h>
 
 #include "common/ieee802_11_defs.h"
 #include "common.h"
@@ -1301,4 +1302,32 @@ void forced_memzero(void *ptr, size_t len)
 	memset_func(ptr, 0, len);
 	if (len)
 		forced_memzero_val = ((u8 *) ptr)[0];
+}
+
+int read_link_target(const char *name, char **target)
+{
+	ssize_t len;
+	char *path;
+	struct stat statbuf;
+
+	if (lstat(name, &statbuf) < 0)
+		return -1;
+	if (!S_ISLNK(statbuf.st_mode)) {
+		*target = NULL;
+		return 0;
+	}
+
+	path = os_malloc(statbuf.st_size+1);
+	if (!path) 
+		return -1;
+
+	len = readlink(name, path, statbuf.st_size+1);
+	if (len < 0 || len > statbuf.st_size) {
+		os_free(path);
+		return -1;
+	}
+
+	path[len] = '\0';
+	*target = path;
+	return 0;
 }
