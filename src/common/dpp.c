@@ -180,6 +180,13 @@ void dpp_bootstrap_info_free(struct dpp_bootstrap_info *info)
 	os_free(info->info);
 	os_free(info->chan);
 	os_free(info->pk);
+#ifndef OPENSSL_NO_ENGINE
+	os_free(info->key_id);
+	os_free(info->engine_id);
+	os_free(info->engine_path);
+	if (info->engine)
+		ENGINE_finish(info->engine);
+#endif /* OPENSSL_NO_ENGINE */
 	EVP_PKEY_free(info->pubkey);
 	str_clear_free(info->configurator_params);
 	os_free(info);
@@ -3893,6 +3900,11 @@ int dpp_bootstrap_gen(struct dpp_global *dpp, const char *cmd)
 	info = get_param(cmd, " info=");
 	curve = get_param(cmd, " curve=");
 	key = get_param(cmd, " key=");
+#ifndef OPENSSL_NO_ENGINE
+	bi->key_id = get_param(cmd, " key_id=");
+	bi->engine_id = get_param(cmd, " engine=");
+	bi->engine_path = get_param(cmd, " engine_path=");
+#endif /* OPENSSL_NO_ENGINE */
 
 	if (key) {
 		privkey_len = os_strlen(key) / 2;
@@ -3901,6 +3913,13 @@ int dpp_bootstrap_gen(struct dpp_global *dpp, const char *cmd)
 		    hexstr2bin(key, privkey, privkey_len) < 0)
 			goto fail;
 	}
+#ifndef OPENSSL_NO_ENGINE
+	else if (bi->key_id) {
+		bi->engine = dpp_load_engine(bi->engine_id, bi->engine_path);
+		if (!bi->engine)
+			goto fail;
+	}
+#endif /* OPENSSL_NO_ENGINE */
 
 	if (dpp_keygen(bi, curve, privkey, privkey_len) < 0 ||
 	    dpp_parse_uri_chan_list(bi, bi->chan) < 0 ||

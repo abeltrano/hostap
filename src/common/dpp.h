@@ -12,6 +12,9 @@
 
 #ifdef CONFIG_DPP
 #include <openssl/x509.h>
+#ifndef OPENSSL_NO_ENGINE
+#include <openssl/engine.h>
+#endif /* OPENSSL_NO_ENGINE */ 
 
 #include "utils/list.h"
 #include "common/wpa_common.h"
@@ -166,6 +169,12 @@ struct dpp_bootstrap_info {
 	int nfc_negotiated; /* whether this has been used in NFC negotiated
 			     * connection handover */
 	char *configurator_params;
+#ifndef OPENSSL_NO_ENGINE
+	char *key_id;
+	char *engine_id;
+	char *engine_path;
+	ENGINE *engine;
+#endif /* OPENSSL_NO_ENGINE */
 };
 
 #define PKEX_COUNTER_T_LIMIT 5

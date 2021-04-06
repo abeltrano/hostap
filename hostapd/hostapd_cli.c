@@ -1690,7 +1690,7 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
 	{ "dpp_qr_code", hostapd_cli_cmd_dpp_qr_code, NULL,
 	  "report a scanned DPP URI from a QR Code" },
 	{ "dpp_bootstrap_gen", hostapd_cli_cmd_dpp_bootstrap_gen, NULL,
-	  "type=<qrcode> [chan=..] [mac=..] [info=..] [curve=..] [key=..] = generate DPP bootstrap information" },
+	  "type=<qrcode> [chan=..] [mac=..] [info=..] [curve=..] [key=..] [key_id=..] [engine=..] [engine_path=..] = generate DPP bootstrap information" },
 	{ "dpp_bootstrap_remove", hostapd_cli_cmd_dpp_bootstrap_remove, NULL,
 	  "*|<id> = remove DPP bootstrap information" },
 	{ "dpp_bootstrap_get_uri", hostapd_cli_cmd_dpp_bootstrap_get_uri, NULL,
